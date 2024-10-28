@@ -17,13 +17,15 @@
 package main
 
 import (
+	"bsc-node/internal/version"
+	"bsc-node/params"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 
 	// "github.com/ethereum/go-ethereum/internal/version"
-	"github.com/ethereum/go-ethereum/params"
+	// "github.com/ethereum/go-ethereum/params"
 	"github.com/urfave/cli/v2"
 )
 
@@ -33,11 +35,11 @@ var (
 		Usage: "URL to use when checking vulnerabilities",
 		Value: "https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json",
 	}
-	// VersionCheckVersionFlag = &cli.StringFlag{
-	// 	Name:  "check.version",
-	// 	Usage: "Version to check",
-	// 	Value: version.ClientName(clientIdentifier),
-	// }
+	VersionCheckVersionFlag = &cli.StringFlag{
+		Name:  "check.version",
+		Usage: "Version to check",
+		Value: version.ClientName(clientIdentifier),
+	}
 	versionCommand = &cli.Command{
 		Action:    printVersion,
 		Name:      "version",
@@ -48,10 +50,10 @@ The output of this command is supposed to be machine-readable.
 `,
 	}
 	versionCheckCommand = &cli.Command{
-		// Action: versionCheck,
+		Action: versionCheck,
 		Flags: []cli.Flag{
 			VersionCheckUrlFlag,
-			// VersionCheckVersionFlag,
+			VersionCheckVersionFlag,
 		},
 		Name:      "version-check",
 		Usage:     "Checks (online) for known Geth security vulnerabilities",
@@ -70,16 +72,16 @@ and displays information about any security vulnerabilities that affect the curr
 )
 
 func printVersion(ctx *cli.Context) error {
-	// git, _ := version.VCS()
+	git, _ := version.VCS()
 
 	fmt.Println(strings.Title(clientIdentifier))
 	fmt.Println("Version:", params.VersionWithMeta)
-	// if git.Commit != "" {
-	// 	fmt.Println("Git Commit:", git.Commit)
-	// }
-	// if git.Date != "" {
-	// 	fmt.Println("Git Commit Date:", git.Date)
-	// }
+	if git.Commit != "" {
+		fmt.Println("Git Commit:", git.Commit)
+	}
+	if git.Date != "" {
+		fmt.Println("Git Commit Date:", git.Date)
+	}
 	fmt.Println("Architecture:", runtime.GOARCH)
 	fmt.Println("Go Version:", runtime.Version())
 	fmt.Println("Operating System:", runtime.GOOS)

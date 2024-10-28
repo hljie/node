@@ -22,15 +22,16 @@ package leveldb
 
 import (
 	"fmt"
-	"node/ethdb"
-	"strings"
 	"sync"
 	"time"
 
+	"bsc-node/ethdb"
+	"bsc-node/log"
+
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
+	"bsc-node/metrics"
+
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -247,11 +248,6 @@ func (db *Database) NewSnapshot() (ethdb.Snapshot, error) {
 
 // Stat returns a particular internal stat of the database.
 func (db *Database) Stat(property string) (string, error) {
-	if property == "" {
-		property = "leveldb.stats"
-	} else if !strings.HasPrefix(property, "leveldb.") {
-		property = "leveldb." + property
-	}
 	return db.db.GetProperty(property)
 }
 

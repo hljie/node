@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"node/core/vm"
+	"bsc-node/core/vm"
 
-	"node/eth/tracers"
+	"bsc-node/eth/tracers"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -68,6 +68,8 @@ func (t *noopTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 func (*noopTracer) CaptureTxStart(gasLimit uint64) {}
 
 func (*noopTracer) CaptureTxEnd(restGas uint64) {}
+
+func (*noopTracer) CaptureSystemTxEnd(intrinsicGas uint64) {}
 
 // GetResult returns an empty json object.
 func (t *noopTracer) GetResult() (json.RawMessage, error) {

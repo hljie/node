@@ -19,10 +19,8 @@ package logger
 import (
 	"math/big"
 
-	"node/core/types"
-	"node/core/vm"
-
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/core/types"
+	"bsc-node/core/vm"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -174,6 +172,8 @@ func (*AccessListTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 func (*AccessListTracer) CaptureTxStart(gasLimit uint64) {}
 
 func (*AccessListTracer) CaptureTxEnd(restGas uint64) {}
+
+func (*AccessListTracer) CaptureSystemTxEnd(intrinsicGas uint64) {}
 
 // AccessList returns the current accesslist maintained by the tracer.
 func (a *AccessListTracer) AccessList() types.AccessList {

@@ -1033,7 +1033,7 @@ var formatOutputInt = function (param) {
  *
  * @method formatOutputUInt
  * @param {SolidityParam}
- * @returns {BigNumber} right-aligned output bytes formatted to uint
+ * @returns {BigNumeber} right-aligned output bytes formatted to uint
  */
 var formatOutputUInt = function (param) {
     var value = param.staticPart() || "0";
@@ -2031,7 +2031,7 @@ var fromAscii = function(str) {
  *
  * @method transformToFullName
  * @param {Object} json-abi
- * @return {String} full function/event name
+ * @return {String} full fnction/event name
  */
 var transformToFullName = function (json) {
     if (json.name.indexOf('(') !== -1) {
@@ -2361,7 +2361,7 @@ var isFunction = function (object) {
 };
 
 /**
- * Returns true if object is Object, otherwise false
+ * Returns true if object is Objet, otherwise false
  *
  * @method isObject
  * @param {Object}
@@ -2757,7 +2757,7 @@ var Batch = function (web3) {
  * Should be called to add create new request to batch request
  *
  * @method add
- * @param {Object} jsonrpc request object
+ * @param {Object} jsonrpc requet object
  */
 Batch.prototype.add = function (request) {
     this.requests.push(request);
@@ -3820,6 +3820,39 @@ var outputTransactionReceiptFormatter = function (receipt){
 };
 
 /**
+ * Formats the output of a transaction original data and receipt to its proper values
+ *
+ * @method outputTransactionDataAndReceiptFormatter
+ * @param {Object} dataAndReceipt
+ * @returns {Object}
+ */
+var outputTransactionDataAndReceiptFormatter = function (dataAndReceipt){
+  if(dataAndReceipt.receipt.blockNumber !== null)
+    dataAndReceipt.receipt.blockNumber = utils.toDecimal(dataAndReceipt.receipt.blockNumber);
+  if(dataAndReceipt.receipt.transactionIndex !== null)
+    dataAndReceipt.receipt.transactionIndex = utils.toDecimal(dataAndReceipt.receipt.transactionIndex);
+  dataAndReceipt.receipt.cumulativeGasUsed = utils.toDecimal(dataAndReceipt.receipt.cumulativeGasUsed);
+  dataAndReceipt.receipt.gasUsed = utils.toDecimal(dataAndReceipt.receipt.gasUsed);
+
+  if(utils.isArray(dataAndReceipt.receipt.logs)) {
+    dataAndReceipt.receipt.logs = dataAndReceipt.receipt.logs.map(function(log){
+      return outputLogFormatter(log);
+    });
+  }
+
+  if(dataAndReceipt.txData.blockNumber !== null)
+    dataAndReceipt.txData.blockNumber = utils.toDecimal(dataAndReceipt.txData.blockNumber);
+  if(dataAndReceipt.txData.transactionIndex !== null)
+    dataAndReceipt.txData.transactionIndex = utils.toDecimal(dataAndReceipt.txData.transactionIndex);
+  dataAndReceipt.txData.nonce = utils.toDecimal(dataAndReceipt.txData.nonce);
+  dataAndReceipt.txData.gas = utils.toDecimal(dataAndReceipt.txData.gas);
+  dataAndReceipt.txData.gasPrice = utils.toBigNumber(dataAndReceipt.txData.gasPrice);
+  dataAndReceipt.txData.value = utils.toBigNumber(dataAndReceipt.txData.value);
+
+  return dataAndReceipt;
+};
+
+/**
  * Formats the output of a block to its proper values
  *
  * @method outputBlockFormatter
@@ -3961,8 +3994,6 @@ var outputSyncingFormatter = function(result) {
     result.healedBytecodeBytes = utils.toDecimal(result.healedBytecodeBytes);
     result.healingTrienodes = utils.toDecimal(result.healingTrienodes);
     result.healingBytecode = utils.toDecimal(result.healingBytecode);
-    result.txIndexFinishedBlocks = utils.toDecimal(result.txIndexFinishedBlocks);
-    result.txIndexRemainingBlocks = utils.toDecimal(result.txIndexRemainingBlocks);
 
     return result;
 };
@@ -3977,6 +4008,7 @@ module.exports = {
     outputBigNumberFormatter: outputBigNumberFormatter,
     outputTransactionFormatter: outputTransactionFormatter,
     outputTransactionReceiptFormatter: outputTransactionReceiptFormatter,
+    outputTransactionDataAndReceiptFormatter: outputTransactionDataAndReceiptFormatter,
     outputBlockFormatter: outputBlockFormatter,
     outputLogFormatter: outputLogFormatter,
     outputPostFormatter: outputPostFormatter,
@@ -4559,7 +4591,7 @@ Iban.createIndirect = function (options) {
 };
 
 /**
- * This method should be used to check if given string is valid iban object
+ * Thos method should be used to check if given string is valid iban object
  *
  * @method isValid
  * @param {String} iban string
@@ -5363,6 +5395,27 @@ var methods = function () {
         outputFormatter: formatters.outputTransactionFormatter
     });
 
+    var getTransactionDataAndReceipt = new Method({
+      name: 'getTransactionDataAndReceipt',
+      call: 'eth_getTransactionDataAndReceipt',
+      params: 1,
+      outputFormatter: formatters.outputTransactionDataAndReceiptFormatter
+    });
+
+    var getTransactionsByBlockNumber = new Method({
+      name: 'getTransactionsByBlockNumber',
+      call: 'eth_getTransactionsByBlockNumber',
+      params: 1,
+      outputFormatter: formatters.outputTransactionFormatter
+    });
+
+    var getTransactionReceiptsByBlockNumber = new Method({
+      name: 'getTransactionReceiptsByBlockNumber',
+      call: 'eth_getTransactionReceiptsByBlockNumber',
+      params: 1,
+      outputFormatter: formatters.outputTransactionReceiptFormatter
+    });
+
     var getTransactionReceipt = new Method({
         name: 'getTransactionReceipt',
         call: 'eth_getTransactionReceipt',
@@ -5382,6 +5435,13 @@ var methods = function () {
         name: 'sendRawTransaction',
         call: 'eth_sendRawTransaction',
         params: 1,
+        inputFormatter: [null]
+    });
+
+    var sendRawTransactionConditional = new Method({
+        name: 'sendRawTransactionConditional',
+        call: 'eth_sendRawTransactionConditional',
+        params: 2,
         inputFormatter: [null]
     });
 
@@ -5462,11 +5522,15 @@ var methods = function () {
         getBlockUncleCount,
         getTransaction,
         getTransactionFromBlock,
+        getTransactionsByBlockNumber,
+        getTransactionReceiptsByBlockNumber,
+        getTransactionDataAndReceipt,
         getTransactionReceipt,
         getTransactionCount,
         call,
         estimateGas,
         sendRawTransaction,
+        sendRawTransactionConditional,
         signTransaction,
         sendTransaction,
         sign,
@@ -6708,7 +6772,7 @@ var exchangeAbi = require('../contracts/SmartExchange.json');
  * @method transfer
  * @param {String} from
  * @param {String} to iban
- * @param {Value} value to be transferred
+ * @param {Value} value to be tranfered
  * @param {Function} callback, callback
  */
 var transfer = function (eth, from, to, value, callback) {
@@ -6738,7 +6802,7 @@ var transfer = function (eth, from, to, value, callback) {
  * @method transferToAddress
  * @param {String} from
  * @param {String} to
- * @param {Value} value to be transferred
+ * @param {Value} value to be tranfered
  * @param {Function} callback, callback
  */
 var transferToAddress = function (eth, from, to, value, callback) {
@@ -7092,7 +7156,7 @@ module.exports = transfer;
 	        /**
 	         * Initializes a newly created cipher.
 	         *
-	         * @param {number} xformMode Either the encryption or decryption transformation mode constant.
+	         * @param {number} xformMode Either the encryption or decryption transormation mode constant.
 	         * @param {WordArray} key The key.
 	         * @param {Object} cfg (Optional) The configuration options to use for this operation.
 	         *
@@ -9446,7 +9510,7 @@ module.exports = transfer;
 	            var M_offset_14 = M[offset + 14];
 	            var M_offset_15 = M[offset + 15];
 
-	            // Working variables
+	            // Working varialbes
 	            var a = H[0];
 	            var b = H[1];
 	            var c = H[2];

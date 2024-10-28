@@ -21,17 +21,16 @@ import (
 	"math/big"
 	"sync"
 
-	"node/core"
-	"node/core/types"
-	"node/params"
-	"node/rpc"
+	"bsc-node/core"
+	"bsc-node/core/types"
+	"bsc-node/params"
+	"bsc-node/rpc"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 
 	// "github.com/ethereum/go-ethereum/params"
 	// "github.com/ethereum/go-ethereum/rpc"
@@ -41,8 +40,8 @@ import (
 const sampleNumber = 3 // Number of transactions sampled in a block
 
 var (
-	DefaultMaxPrice    = big.NewInt(500 * params.GWei)
-	DefaultIgnorePrice = big.NewInt(2 * params.Wei)
+	DefaultMaxPrice    = big.NewInt(100 * params.GWei)
+	DefaultIgnorePrice = big.NewInt(4 * params.Wei)
 )
 
 type Config struct {
@@ -53,6 +52,7 @@ type Config struct {
 	Default          *big.Int `toml:",omitempty"`
 	MaxPrice         *big.Int `toml:",omitempty"`
 	IgnorePrice      *big.Int `toml:",omitempty"`
+	OracleThreshold  int      `toml:",omitempty"`
 }
 
 // OracleBackend includes all necessary background APIs for oracle.
@@ -76,7 +76,9 @@ type Oracle struct {
 	cacheLock   sync.RWMutex
 	fetchLock   sync.Mutex
 
+	defaultPrice                      *big.Int
 	checkBlocks, percentile           int
+	sampleTxThreshold                 int
 	maxHeaderHistory, maxBlockHistory uint64
 
 	historyCache *lru.Cache[cacheKey, processedFees]
@@ -135,15 +137,17 @@ func NewOracle(backend OracleBackend, params Config) *Oracle {
 	}()
 
 	return &Oracle{
-		backend:          backend,
-		lastPrice:        params.Default,
-		maxPrice:         maxPrice,
-		ignorePrice:      ignorePrice,
-		checkBlocks:      blocks,
-		percentile:       percent,
-		maxHeaderHistory: maxHeaderHistory,
-		maxBlockHistory:  maxBlockHistory,
-		historyCache:     cache,
+		backend:           backend,
+		lastPrice:         params.Default,
+		maxPrice:          maxPrice,
+		ignorePrice:       ignorePrice,
+		checkBlocks:       blocks,
+		percentile:        percent,
+		maxHeaderHistory:  maxHeaderHistory,
+		maxBlockHistory:   maxBlockHistory,
+		historyCache:      cache,
+		sampleTxThreshold: params.OracleThreshold,
+		defaultPrice:      params.Default,
 	}
 }
 
@@ -213,9 +217,12 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 		results = append(results, res.values...)
 	}
 	price := lastPrice
-	if len(results) > 0 {
+	if len(results) > oracle.sampleTxThreshold {
 		slices.SortFunc(results, func(a, b *big.Int) int { return a.Cmp(b) })
 		price = results[(len(results)-1)*oracle.percentile/100]
+	}
+	if price.Cmp(oracle.defaultPrice) < 0 {
+		price = new(big.Int).Set(oracle.defaultPrice)
 	}
 	if price.Cmp(oracle.maxPrice) > 0 {
 		price = new(big.Int).Set(oracle.maxPrice)

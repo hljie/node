@@ -18,13 +18,13 @@
 package gethclient
 
 import (
+	"bsc-node/core/types"
+	"bsc-node/p2p"
+	"bsc-node/rpc"
 	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"node/core/types"
-	"node/p2p"
-	"node/rpc"
 	"runtime"
 	"runtime/debug"
 
@@ -228,7 +228,7 @@ func toCallArg(msg ethereum.CallMsg) interface{} {
 		"to":   msg.To,
 	}
 	if len(msg.Data) > 0 {
-		arg["input"] = hexutil.Bytes(msg.Data)
+		arg["data"] = hexutil.Bytes(msg.Data)
 	}
 	if msg.Value != nil {
 		arg["value"] = (*hexutil.Big)(msg.Value)
@@ -238,15 +238,6 @@ func toCallArg(msg ethereum.CallMsg) interface{} {
 	}
 	if msg.GasPrice != nil {
 		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
-	}
-	if msg.GasFeeCap != nil {
-		arg["maxFeePerGas"] = (*hexutil.Big)(msg.GasFeeCap)
-	}
-	if msg.GasTipCap != nil {
-		arg["maxPriorityFeePerGas"] = (*hexutil.Big)(msg.GasTipCap)
-	}
-	if msg.AccessList != nil {
-		arg["accessList"] = msg.AccessList
 	}
 	return arg
 }

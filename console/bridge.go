@@ -17,15 +17,15 @@
 package console
 
 import (
+	"bsc-node/accounts/scwallet"
+	"bsc-node/accounts/usbwallet"
+	"bsc-node/console/prompt"
+	"bsc-node/internal/jsre"
+	"bsc-node/rpc"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"node/accounts/scwallet"
-	"node/accounts/usbwallet"
-	"node/console/prompt"
-	"node/internal/jsre"
-	"node/rpc"
 	"reflect"
 	"strings"
 	"time"
@@ -83,7 +83,7 @@ func (b *bridge) NewAccount(call jsre.Call) (goja.Value, error) {
 			return nil, err
 		}
 		if password != confirm {
-			return nil, errors.New("passwords don't match")
+			return nil, errors.New("passwords don't match!")
 		}
 	// A single string password was specified, use that
 	case len(call.Arguments) == 1 && call.Argument(0).ToString() != nil:

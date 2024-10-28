@@ -27,12 +27,12 @@ import (
 	"sync"
 	"time"
 
-	"node/accounts"
+	"bsc-node/accounts"
+	"bsc-node/log"
 
 	mapset "github.com/deckarep/golang-set/v2"
 	// "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/exp/slices"
 )
 

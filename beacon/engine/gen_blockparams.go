@@ -5,7 +5,8 @@ package engine
 import (
 	"encoding/json"
 	"errors"
-	"node/core/types"
+
+	"bsc-node/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -21,14 +22,12 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 		Random                common.Hash         `json:"prevRandao"            gencodec:"required"`
 		SuggestedFeeRecipient common.Address      `json:"suggestedFeeRecipient" gencodec:"required"`
 		Withdrawals           []*types.Withdrawal `json:"withdrawals"`
-		BeaconRoot            *common.Hash        `json:"parentBeaconBlockRoot"`
 	}
 	var enc PayloadAttributes
 	enc.Timestamp = hexutil.Uint64(p.Timestamp)
 	enc.Random = p.Random
 	enc.SuggestedFeeRecipient = p.SuggestedFeeRecipient
 	enc.Withdrawals = p.Withdrawals
-	enc.BeaconRoot = p.BeaconRoot
 	return json.Marshal(&enc)
 }
 
@@ -39,7 +38,6 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 		Random                *common.Hash        `json:"prevRandao"            gencodec:"required"`
 		SuggestedFeeRecipient *common.Address     `json:"suggestedFeeRecipient" gencodec:"required"`
 		Withdrawals           []*types.Withdrawal `json:"withdrawals"`
-		BeaconRoot            *common.Hash        `json:"parentBeaconBlockRoot"`
 	}
 	var dec PayloadAttributes
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -59,9 +57,6 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 	p.SuggestedFeeRecipient = *dec.SuggestedFeeRecipient
 	if dec.Withdrawals != nil {
 		p.Withdrawals = dec.Withdrawals
-	}
-	if dec.BeaconRoot != nil {
-		p.BeaconRoot = dec.BeaconRoot
 	}
 	return nil
 }

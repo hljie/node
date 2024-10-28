@@ -25,16 +25,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"node/core/rawdb"
-	"node/core/types"
-	"node/ethdb"
+	"bsc-node/core/rawdb"
+	"bsc-node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // ChainIndexerBackend defines the methods needed to process chain segments in

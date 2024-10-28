@@ -23,9 +23,9 @@ import (
 	"math/big"
 	"strings"
 
-	"node/core/vm"
+	"bsc-node/core/vm"
 
-	"node/eth/tracers"
+	"bsc-node/eth/tracers"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -209,6 +209,10 @@ func (t *flatCallTracer) CaptureTxStart(gasLimit uint64) {
 
 func (t *flatCallTracer) CaptureTxEnd(restGas uint64) {
 	t.tracer.CaptureTxEnd(restGas)
+}
+
+func (t *flatCallTracer) CaptureSystemTxEnd(intrinsicGas uint64) {
+	t.tracer.CaptureSystemTxEnd(intrinsicGas)
 }
 
 // GetResult returns an empty json object.

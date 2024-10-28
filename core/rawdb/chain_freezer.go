@@ -18,15 +18,16 @@ package rawdb
 
 import (
 	"fmt"
-	"node/ethdb"
-	"node/params"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"bsc-node/ethdb"
+	"bsc-node/params"
+
+	"bsc-node/log"
+
 	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 	// "github.com/ethereum/go-ethereum/params"
 )
 
@@ -54,8 +55,8 @@ type chainFreezer struct {
 }
 
 // newChainFreezer initializes the freezer for ancient chain data.
-func newChainFreezer(datadir string, namespace string, readonly bool) (*chainFreezer, error) {
-	freezer, err := NewChainFreezer(datadir, namespace, readonly)
+func newChainFreezer(datadir string, namespace string, readonly bool, offset uint64) (*chainFreezer, error) {
+	freezer, err := NewChainFreezer(datadir, namespace, readonly, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func (f *chainFreezer) freeze(db ethdb.KeyValueStore) {
 			continue
 
 		case *number < threshold:
-			log.Debug("Current full block not old enough to freeze", "number", *number, "hash", hash, "delay", threshold)
+			log.Debug("Current full block not old enough", "number", *number, "hash", hash, "delay", threshold)
 			backoff = true
 			continue
 
@@ -202,7 +203,7 @@ func (f *chainFreezer) freeze(db ethdb.KeyValueStore) {
 		}
 		batch.Reset()
 
-		// Step into the future and delete any dangling side chains
+		// Step into the future and delete and dangling side chains
 		if frozen > 0 {
 			tip := frozen
 			for len(dangling) > 0 {

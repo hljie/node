@@ -18,14 +18,14 @@ package main
 
 import (
 	"fmt"
-	"node/cmd/utils"
-	"node/console"
-	"node/internal/flags"
 	"strings"
+
+	"bsc-node/cmd/utils"
+	"bsc-node/console"
+	"bsc-node/internal/flags"
 
 	// "github.com/ethereum/go-ethereum/cmd/utils"
 	// "github.com/ethereum/go-ethereum/console"
-	// "github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 

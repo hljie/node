@@ -22,16 +22,20 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"node/accounts"
-	"node/core/rawdb"
-	"node/ethdb"
-	"node/p2p"
-	"node/rpc"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
+
+	"bsc-node/accounts"
+	"bsc-node/core/rawdb"
+	"bsc-node/ethdb"
+	"bsc-node/ethdb/leveldb"
+	"bsc-node/log"
+	"bsc-node/p2p"
+	"bsc-node/rpc"
 
 	// "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -39,9 +43,8 @@ import (
 
 	// "github.com/ethereum/go-ethereum/core/rawdb"
 	// "github.com/ethereum/go-ethereum/ethdb"
+	// "github.com/ethereum/go-ethereum/ethdb/leveldb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
-
 	// "github.com/ethereum/go-ethereum/p2p"
 	// "github.com/ethereum/go-ethereum/rpc"
 	"github.com/gofrs/flock"
@@ -80,6 +83,8 @@ const (
 	closedState
 )
 
+const chainDataHandlesPercentage = 80
+
 // New creates a new P2P node, ready for protocol registration.
 func New(conf *Config) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
@@ -92,6 +97,42 @@ func New(conf *Config) (*Node, error) {
 			return nil, err
 		}
 		conf.DataDir = absdatadir
+	}
+	if conf.LogConfig != nil {
+		if conf.LogConfig.TermTimeFormat != nil && *conf.LogConfig.TermTimeFormat != "" {
+			log.SetTermTimeFormat(*conf.LogConfig.TermTimeFormat)
+		}
+
+		if conf.LogConfig.TimeFormat != nil && *conf.LogConfig.TimeFormat != "" {
+			log.SetTimeFormat(*conf.LogConfig.TimeFormat)
+		}
+
+		if conf.LogConfig.FileRoot != nil && conf.LogConfig.FilePath != nil &&
+			conf.LogConfig.MaxBytesSize != nil && conf.LogConfig.Level != nil {
+			// log to file
+			logFilePath := ""
+			if *conf.LogConfig.FileRoot == "" {
+				logFilePath = path.Join(conf.DataDir, *conf.LogConfig.FilePath)
+			} else {
+				logFilePath = path.Join(*conf.LogConfig.FileRoot, *conf.LogConfig.FilePath)
+			}
+
+			rotateHours := uint(1) // To maintain backwards compatibility, if RotateHours is not set, then it defaults to 1
+			if conf.LogConfig.RotateHours != nil {
+				if *conf.LogConfig.RotateHours > 23 {
+					return nil, errors.New("Config.LogConfig.RotateHours cannot be greater than 23")
+				}
+
+				rotateHours = *conf.LogConfig.RotateHours
+			}
+
+			maxBackups := uint(0)
+			if conf.LogConfig.MaxBackups != nil {
+				maxBackups = *conf.LogConfig.MaxBackups
+			}
+
+			log.Root().SetHandler(log.NewFileLvlHandler(logFilePath, *conf.LogConfig.MaxBytesSize, maxBackups, *conf.LogConfig.Level, rotateHours))
+		}
 	}
 	if conf.Logger == nil {
 		conf.Logger = log.New()
@@ -456,20 +497,15 @@ func (n *Node) startRPC() error {
 		if err := server.setListenAddr(n.config.AuthAddr, port); err != nil {
 			return err
 		}
-		sharedConfig := rpcEndpointConfig{
-			jwtSecret:              secret,
-			batchItemLimit:         engineAPIBatchItemLimit,
-			batchResponseSizeLimit: engineAPIBatchResponseSizeLimit,
-			httpBodyLimit:          engineAPIBodyLimit,
-		}
-		err := server.enableRPC(allAPIs, httpConfig{
+		sharedConfig := rpcConfig
+		sharedConfig.jwtSecret = secret
+		if err := server.enableRPC(allAPIs, httpConfig{
 			CorsAllowedOrigins: DefaultAuthCors,
 			Vhosts:             n.config.AuthVirtualHosts,
 			Modules:            DefaultAuthModules,
 			prefix:             DefaultAuthPrefix,
 			rpcEndpointConfig:  sharedConfig,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 		servers = append(servers, server)
@@ -748,12 +784,32 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 	return db, err
 }
 
+func (n *Node) OpenAndMergeDatabase(name string, cache, handles int, freezer, diff, namespace string, readonly, persistDiff, pruneAncientData bool) (ethdb.Database, error) {
+	chainDataHandles := handles
+	if persistDiff {
+		chainDataHandles = handles * chainDataHandlesPercentage / 100
+	}
+	chainDB, err := n.OpenDatabaseWithFreezer(name, cache, chainDataHandles, freezer, namespace, readonly, false, false, pruneAncientData)
+	if err != nil {
+		return nil, err
+	}
+	if persistDiff {
+		diffStore, err := n.OpenDiffDatabase(name, handles-chainDataHandles, diff, namespace, readonly)
+		if err != nil {
+			chainDB.Close()
+			return nil, err
+		}
+		chainDB.SetDiffStore(diffStore)
+	}
+	return chainDB, nil
+}
+
 // OpenDatabaseWithFreezer opens an existing database with the given name (or
 // creates one if no previous can be found) from within the node's data directory,
 // also attaching a chain freezer to it that moves ancient chain data from the
 // database to immutable append-only files. If the node is an ephemeral one, a
 // memory database is returned.
-func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient string, namespace string, readonly bool) (ethdb.Database, error) {
+func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient, namespace string, readonly, disableFreeze, isLastOffset, pruneAncientData bool) (ethdb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if n.state == closedState {
@@ -772,12 +828,39 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient 
 			Cache:             cache,
 			Handles:           handles,
 			ReadOnly:          readonly,
+			DisableFreeze:     disableFreeze,
+			IsLastOffset:      isLastOffset,
+			PruneAncientData:  pruneAncientData,
 		})
 	}
 
 	if err == nil {
 		db = n.wrapDatabase(db)
 	}
+	return db, err
+}
+
+func (n *Node) OpenDiffDatabase(name string, handles int, diff, namespace string, readonly bool) (*leveldb.Database, error) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	if n.state == closedState {
+		return nil, ErrNodeStopped
+	}
+
+	var db *leveldb.Database
+	var err error
+	if n.config.DataDir == "" {
+		panic("datadir is missing")
+	}
+	root := n.ResolvePath(name)
+	switch {
+	case diff == "":
+		diff = filepath.Join(root, "diff")
+	case !filepath.IsAbs(diff):
+		diff = n.ResolvePath(diff)
+	}
+	db, err = leveldb.New(diff, 0, handles, namespace, readonly)
+
 	return db, err
 }
 

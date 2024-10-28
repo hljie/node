@@ -17,11 +17,13 @@
 package asm
 
 import (
+	"bsc-node/common/gopool"
 	"fmt"
 	"os"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	// "github.com/ethereum/go-ethereum/common/gopool"
 )
 
 // stateFn is used through the lifetime of the
@@ -42,8 +44,6 @@ type token struct {
 // is able to parse and return.
 type tokenType int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type tokenType
-
 const (
 	eof              tokenType = iota // end of file
 	lineStart                         // emitted when a line starts
@@ -54,13 +54,31 @@ const (
 	labelDef                          // label definition is emitted when a new label is found
 	number                            // number is emitted when a number is found
 	stringValue                       // stringValue is emitted when a string has been found
+
+	Numbers            = "1234567890"                                           // characters representing any decimal number
+	HexadecimalNumbers = Numbers + "aAbBcCdDeEfF"                               // characters representing any hexadecimal
+	Alpha              = "abcdefghijklmnopqrstuwvxyzABCDEFGHIJKLMNOPQRSTUWVXYZ" // characters representing alphanumeric
 )
 
-const (
-	decimalNumbers = "1234567890"                                           // characters representing any decimal number
-	hexNumbers     = decimalNumbers + "aAbBcCdDeEfF"                        // characters representing any hexadecimal
-	alpha          = "abcdefghijklmnopqrstuwvxyzABCDEFGHIJKLMNOPQRSTUWVXYZ" // characters representing alphanumeric
-)
+// String implements stringer
+func (it tokenType) String() string {
+	if int(it) > len(stringtokenTypes) {
+		return "invalid"
+	}
+	return stringtokenTypes[it]
+}
+
+var stringtokenTypes = []string{
+	eof:              "EOF",
+	lineStart:        "new line",
+	lineEnd:          "end of line",
+	invalidStatement: "invalid statement",
+	element:          "element",
+	label:            "label",
+	labelDef:         "label definition",
+	number:           "number",
+	stringValue:      "string",
+}
 
 // lexer is the basic construct for parsing
 // source code and turning them in to tokens.
@@ -87,14 +105,14 @@ func Lex(source []byte, debug bool) <-chan token {
 		state:  lexLine,
 		debug:  debug,
 	}
-	go func() {
+	gopool.Submit(func() {
 		l.emit(lineStart)
 		for l.state != nil {
 			l.state = l.state(l)
 		}
 		l.emit(eof)
 		close(l.tokens)
-	}()
+	})
 
 	return ch
 }
@@ -184,6 +202,7 @@ func lexLine(l *lexer) stateFn {
 			l.emit(lineEnd)
 			l.ignore()
 			l.lineno++
+
 			l.emit(lineStart)
 		case r == ';' && l.peek() == ';':
 			return lexComment
@@ -208,7 +227,6 @@ func lexLine(l *lexer) stateFn {
 // of the line and discards the text.
 func lexComment(l *lexer) stateFn {
 	l.acceptRunUntil('\n')
-	l.backup()
 	l.ignore()
 
 	return lexLine
@@ -218,7 +236,7 @@ func lexComment(l *lexer) stateFn {
 // the lex text state function to advance the parsing
 // process.
 func lexLabel(l *lexer) stateFn {
-	l.acceptRun(alpha + "_" + decimalNumbers)
+	l.acceptRun(Alpha + "_" + Numbers)
 
 	l.emit(label)
 
@@ -237,9 +255,9 @@ func lexInsideString(l *lexer) stateFn {
 }
 
 func lexNumber(l *lexer) stateFn {
-	acceptance := decimalNumbers
+	acceptance := Numbers
 	if l.accept("xX") {
-		acceptance = hexNumbers
+		acceptance = HexadecimalNumbers
 	}
 	l.acceptRun(acceptance)
 
@@ -249,7 +267,7 @@ func lexNumber(l *lexer) stateFn {
 }
 
 func lexElement(l *lexer) stateFn {
-	l.acceptRun(alpha + "_" + decimalNumbers)
+	l.acceptRun(Alpha + "_" + Numbers)
 
 	if l.peek() == ':' {
 		l.emit(labelDef)

@@ -21,20 +21,20 @@ import (
 	"fmt"
 	"time"
 
-	"node/core/types"
-	"node/p2p"
-	"node/p2p/enode"
-	"node/p2p/enr"
-	"node/trie"
-	"node/trie/trienode"
+	"bsc-node/p2p"
+	"bsc-node/p2p/enode"
+	"bsc-node/p2p/enr"
+	"bsc-node/trie"
+	"bsc-node/trie/trienode"
 
-	"node/core"
+	"bsc-node/core"
+	"bsc-node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/log"
+
+	"bsc-node/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	// "github.com/ethereum/go-ethereum/trie"
 	// "github.com/ethereum/go-ethereum/trie/trienode"
 )

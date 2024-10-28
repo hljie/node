@@ -18,13 +18,10 @@ package rpc
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"node/p2p/netutil"
-	"os"
-	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/log"
+	"bsc-node/log"
+	"bsc-node/p2p/netutil"
 	// "github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
@@ -62,37 +59,4 @@ func newClientTransportIPC(endpoint string) reconnectFunc {
 		}
 		return NewCodec(conn), err
 	}
-}
-
-// 原stdio_unix.go代码
-const (
-	// On Linux, sun_path is 108 bytes in size
-	// see http://man7.org/linux/man-pages/man7/unix.7.html
-	maxPathSize = int(108)
-)
-
-// ipcListen will create a Unix socket on the given endpoint.
-func ipcListen(endpoint string) (net.Listener, error) {
-	// account for null-terminator too
-	if len(endpoint)+1 > maxPathSize {
-		log.Warn(fmt.Sprintf("The ipc endpoint is longer than %d characters. ", maxPathSize-1),
-			"endpoint", endpoint)
-	}
-
-	// Ensure the IPC path exists and remove any previous leftover
-	if err := os.MkdirAll(filepath.Dir(endpoint), 0751); err != nil {
-		return nil, err
-	}
-	os.Remove(endpoint)
-	l, err := net.Listen("unix", endpoint)
-	if err != nil {
-		return nil, err
-	}
-	os.Chmod(endpoint, 0600)
-	return l, nil
-}
-
-// newIPCConnection will connect to a Unix socket on the given endpoint.
-func newIPCConnection(ctx context.Context, endpoint string) (net.Conn, error) {
-	return new(net.Dialer).DialContext(ctx, "unix", endpoint)
 }

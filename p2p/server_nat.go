@@ -20,11 +20,12 @@ import (
 	"net"
 	"time"
 
-	"node/p2p/enr"
-	"node/p2p/nat"
+	"bsc-node/p2p/enr"
+	"bsc-node/p2p/nat"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -128,7 +129,7 @@ func (srv *Server) portMappingLoop() {
 			} else if !ip.Equal(lastExtIP) {
 				log.Debug("External IP changed", "ip", extip, "interface", srv.NAT)
 			} else {
-				continue
+				return
 			}
 			// Here, we either failed to get the external IP, or it has changed.
 			lastExtIP = ip

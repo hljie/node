@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"hash"
 
-	"node/p2p/enode"
+	"bsc-node/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"

@@ -17,20 +17,22 @@
 package clique
 
 import (
+	"bsc-node/core/rawdb"
+	"bsc-node/core/types"
+	"bsc-node/ethdb"
+	"bsc-node/log"
+	"bsc-node/params"
 	"bytes"
 	"encoding/json"
-	"node/core/rawdb"
-	"node/core/types"
-	"node/ethdb"
-	"node/params"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/lru"
 
 	// "github.com/ethereum/go-ethereum/core/rawdb"
 	// "github.com/ethereum/go-ethereum/core/types"
 	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/common"
-	lru "github.com/ethereum/go-ethereum/common/lru"
-	"github.com/ethereum/go-ethereum/log"
+	// "github.com/ethereum/go-ethereum/log"
 	// "github.com/ethereum/go-ethereum/params"
 	"golang.org/x/exp/slices"
 )

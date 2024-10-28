@@ -16,9 +16,7 @@
 
 package downloader
 
-import "node/core/types"
-
-// import "github.com/ethereum/go-ethereum/core/types"
+import "bsc-node/core/types"
 
 type DoneEvent struct {
 	Latest *types.Header

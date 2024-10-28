@@ -27,20 +27,21 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"node/accounts"
-	"node/core/types"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"bsc-node/accounts"
+	"bsc-node/core/types"
+	"bsc-node/log"
+
 	"github.com/ethereum/go-ethereum"
 	// "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	pcsc "github.com/gballet/go-libpcsclite"
 	"github.com/status-im/keycard-go/derivationpath"
 )
@@ -778,16 +779,16 @@ func (w *Wallet) findAccountPath(account accounts.Account) (accounts.DerivationP
 		return nil, fmt.Errorf("scheme %s does not match wallet scheme %s", account.URL.Scheme, w.Hub.scheme)
 	}
 
-	url, path, found := strings.Cut(account.URL.Path, "/")
-	if !found {
+	parts := strings.SplitN(account.URL.Path, "/", 2)
+	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid URL format: %s", account.URL)
 	}
 
-	if url != fmt.Sprintf("%x", w.PublicKey[1:3]) {
+	if parts[0] != fmt.Sprintf("%x", w.PublicKey[1:3]) {
 		return nil, fmt.Errorf("URL %s is not for this wallet", account.URL)
 	}
 
-	return accounts.ParseDerivationPath(path)
+	return accounts.ParseDerivationPath(parts[1])
 }
 
 // Session represents a secured communication session with the wallet.

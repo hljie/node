@@ -17,10 +17,9 @@
 package keystore
 
 import (
+	"bsc-node/accounts"
+	"bsc-node/core/types"
 	"math/big"
-
-	"node/accounts"
-	"node/core/types"
 
 	"github.com/ethereum/go-ethereum"
 	// "github.com/ethereum/go-ethereum/accounts"

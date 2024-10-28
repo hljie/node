@@ -18,11 +18,12 @@ package rawdb
 
 import (
 	"encoding/binary"
-	"node/ethdb"
+
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // ReadPreimage retrieves a single preimage of the provided hash.
@@ -257,11 +258,31 @@ func ReadStateHistory(db ethdb.AncientReaderOp, id uint64) ([]byte, []byte, []by
 // history starts from one(zero for initial state).
 func WriteStateHistory(db ethdb.AncientWriter, id uint64, meta []byte, accountIndex []byte, storageIndex []byte, accounts []byte, storages []byte) {
 	db.ModifyAncients(func(op ethdb.AncientWriteOp) error {
-		op.AppendRaw(stateHistoryMeta, id-1, meta)
-		op.AppendRaw(stateHistoryAccountIndex, id-1, accountIndex)
-		op.AppendRaw(stateHistoryStorageIndex, id-1, storageIndex)
-		op.AppendRaw(stateHistoryAccountData, id-1, accounts)
-		op.AppendRaw(stateHistoryStorageData, id-1, storages)
+		err := op.AppendRaw(stateHistoryMeta, id-1, meta)
+		if err != nil {
+			log.Error("WriteStateHistory failed", "err", err)
+			return err
+		}
+		err = op.AppendRaw(stateHistoryAccountIndex, id-1, accountIndex)
+		if err != nil {
+			log.Error("WriteStateHistory failed", "err", err)
+			return err
+		}
+		err = op.AppendRaw(stateHistoryStorageIndex, id-1, storageIndex)
+		if err != nil {
+			log.Error("WriteStateHistory failed", "err", err)
+			return err
+		}
+		err = op.AppendRaw(stateHistoryAccountData, id-1, accounts)
+		if err != nil {
+			log.Error("WriteStateHistory failed", "err", err)
+			return err
+		}
+		err = op.AppendRaw(stateHistoryStorageData, id-1, storages)
+		if err != nil {
+			log.Error("WriteStateHistory failed", "err", err)
+			return err
+		}
 		return nil
 	})
 }

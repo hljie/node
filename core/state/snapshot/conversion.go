@@ -25,16 +25,18 @@ import (
 	"sync"
 	"time"
 
-	"node/core/rawdb"
-	"node/core/types"
-	"node/ethdb"
-	"node/trie"
+	// "github.com/ethereum/go-ethereum/common/gopool"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/common/gopool"
+	"bsc-node/core/rawdb"
+	"bsc-node/core/types"
+	"bsc-node/trie"
+
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	// "github.com/ethereum/go-ethereum/trie"
 )
@@ -321,7 +323,8 @@ func generateTrieRoot(db ethdb.KeyValueWriter, scheme string, it Iterator, accou
 				if err != nil {
 					return stop(err)
 				}
-				go func(hash common.Hash) {
+				hash := it.Hash()
+				gopool.Submit(func() {
 					subroot, err := leafCallback(db, hash, common.BytesToHash(account.CodeHash), stats)
 					if err != nil {
 						results <- err
@@ -332,7 +335,7 @@ func generateTrieRoot(db ethdb.KeyValueWriter, scheme string, it Iterator, accou
 						return
 					}
 					results <- nil
-				}(it.Hash())
+				})
 				fullData, err = rlp.EncodeToBytes(account)
 				if err != nil {
 					return stop(err)

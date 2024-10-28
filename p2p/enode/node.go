@@ -26,7 +26,7 @@ import (
 	"net"
 	"strings"
 
-	"node/p2p/enr"
+	"bsc-node/p2p/enr"
 
 	"github.com/ethereum/go-ethereum/rlp"
 )

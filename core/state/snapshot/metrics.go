@@ -16,7 +16,7 @@
 
 package snapshot
 
-import "github.com/ethereum/go-ethereum/metrics"
+import "bsc-node/metrics"
 
 // Metrics in generation
 var (

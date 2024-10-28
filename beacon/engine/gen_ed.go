@@ -7,7 +7,7 @@ import (
 	"errors"
 	"math/big"
 
-	"node/core/types"
+	"bsc-node/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"

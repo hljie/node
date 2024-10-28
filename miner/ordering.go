@@ -17,38 +17,34 @@
 package miner
 
 import (
+	"bsc-node/core/txpool"
+	"bsc-node/core/types"
 	"container/heap"
 	"math/big"
-	"node/core/txpool"
-	"node/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
-
+	"github.com/ethereum/go-ethereum/common/math"
 	// "github.com/ethereum/go-ethereum/core/txpool"
 	// "github.com/ethereum/go-ethereum/core/types"
-	"github.com/holiman/uint256"
 )
 
 // txWithMinerFee wraps a transaction with its gas price or effective miner gasTipCap
 type txWithMinerFee struct {
 	tx   *txpool.LazyTransaction
 	from common.Address
-	fees *uint256.Int
+	fees *big.Int
 }
 
 // newTxWithMinerFee creates a wrapped transaction, calculating the effective
 // miner gasTipCap if a base fee is provided.
 // Returns error in case of a negative effective miner gasTipCap.
-func newTxWithMinerFee(tx *txpool.LazyTransaction, from common.Address, baseFee *uint256.Int) (*txWithMinerFee, error) {
-	tip := new(uint256.Int).Set(tx.GasTipCap)
+func newTxWithMinerFee(tx *txpool.LazyTransaction, from common.Address, baseFee *big.Int) (*txWithMinerFee, error) {
+	tip := new(big.Int).Set(tx.GasTipCap)
 	if baseFee != nil {
 		if tx.GasFeeCap.Cmp(baseFee) < 0 {
 			return nil, types.ErrGasFeeCapTooLow
 		}
-		tip = new(uint256.Int).Sub(tx.GasFeeCap, baseFee)
-		if tip.Gt(tx.GasTipCap) {
-			tip = tx.GasTipCap
-		}
+		tip = math.BigMin(tx.GasTipCap, new(big.Int).Sub(tx.GasFeeCap, baseFee))
 	}
 	return &txWithMinerFee{
 		tx:   tx,
@@ -93,7 +89,7 @@ type transactionsByPriceAndNonce struct {
 	txs     map[common.Address][]*txpool.LazyTransaction // Per account nonce-sorted list of transactions
 	heads   txByPriceAndTime                             // Next transaction for each unique account (price heap)
 	signer  types.Signer                                 // Signer for the set of transactions
-	baseFee *uint256.Int                                 // Current base fee
+	baseFee *big.Int                                     // Current base fee
 }
 
 // newTransactionsByPriceAndNonce creates a transaction set that can retrieve
@@ -102,15 +98,10 @@ type transactionsByPriceAndNonce struct {
 // Note, the input map is reowned so the caller should not interact any more with
 // if after providing it to the constructor.
 func newTransactionsByPriceAndNonce(signer types.Signer, txs map[common.Address][]*txpool.LazyTransaction, baseFee *big.Int) *transactionsByPriceAndNonce {
-	// Convert the basefee from header format to uint256 format
-	var baseFeeUint *uint256.Int
-	if baseFee != nil {
-		baseFeeUint = uint256.MustFromBig(baseFee)
-	}
 	// Initialize a price and received time based heap with the head transactions
 	heads := make(txByPriceAndTime, 0, len(txs))
 	for from, accTxs := range txs {
-		wrapped, err := newTxWithMinerFee(accTxs[0], from, baseFeeUint)
+		wrapped, err := newTxWithMinerFee(accTxs[0], from, baseFee)
 		if err != nil {
 			delete(txs, from)
 			continue
@@ -125,16 +116,44 @@ func newTransactionsByPriceAndNonce(signer types.Signer, txs map[common.Address]
 		txs:     txs,
 		heads:   heads,
 		signer:  signer,
-		baseFee: baseFeeUint,
+		baseFee: baseFee,
+	}
+}
+
+// Copy copys a new TransactionsPriceAndNonce with the same *transaction
+func (t *transactionsByPriceAndNonce) Copy() *transactionsByPriceAndNonce {
+	heads := make([]*txWithMinerFee, len(t.heads))
+	copy(heads, t.heads)
+	txs := make(map[common.Address][]*txpool.LazyTransaction, len(t.txs))
+	for acc, txsTmp := range t.txs {
+		txs[acc] = txsTmp
+	}
+	var baseFee *big.Int
+	if t.baseFee != nil {
+		baseFee = big.NewInt(0).Set(t.baseFee)
+	}
+	return &transactionsByPriceAndNonce{
+		heads:   heads,
+		txs:     txs,
+		signer:  t.signer,
+		baseFee: baseFee,
 	}
 }
 
 // Peek returns the next transaction by price.
-func (t *transactionsByPriceAndNonce) Peek() (*txpool.LazyTransaction, *uint256.Int) {
+func (t *transactionsByPriceAndNonce) Peek() *txpool.LazyTransaction {
 	if len(t.heads) == 0 {
-		return nil, nil
+		return nil
 	}
-	return t.heads[0].tx, t.heads[0].fees
+	return t.heads[0].tx
+}
+
+// Peek returns the next transaction by price.
+func (t *transactionsByPriceAndNonce) PeekWithUnwrap() *types.Transaction {
+	if len(t.heads) > 0 && t.heads[0].tx != nil && t.heads[0].tx.Resolve() != nil {
+		return t.heads[0].tx.Tx.Tx
+	}
+	return nil
 }
 
 // Shift replaces the current best head with the next one from the same account.
@@ -157,13 +176,50 @@ func (t *transactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
-// Empty returns if the price heap is empty. It can be used to check it simpler
-// than calling peek and checking for nil return.
-func (t *transactionsByPriceAndNonce) Empty() bool {
-	return len(t.heads) == 0
+func (t *transactionsByPriceAndNonce) CurrentSize() int {
+	return len(t.heads)
 }
 
-// Clear removes the entire content of the heap.
-func (t *transactionsByPriceAndNonce) Clear() {
-	t.heads, t.txs = nil, nil
+// Forward moves current transaction to be the one which is one index after tx
+func (t *transactionsByPriceAndNonce) Forward(tx *types.Transaction) {
+	if tx == nil {
+		if len(t.heads) > 0 {
+			t.heads = t.heads[0:0]
+		}
+		return
+	}
+	//check whether target tx exists in t.heads
+	for _, head := range t.heads {
+		if head.tx != nil && head.tx.Resolve() != nil {
+			if tx == head.tx.Tx.Tx {
+				//shift t to the position one after tx
+				txTmp := t.PeekWithUnwrap()
+				for txTmp != tx {
+					t.Shift()
+					txTmp = t.PeekWithUnwrap()
+				}
+				t.Shift()
+				return
+			}
+		}
+	}
+	//get the sender address of tx
+	acc, _ := types.Sender(t.signer, tx)
+	//check whether target tx exists in t.txs
+	if txs, ok := t.txs[acc]; ok {
+		for _, txLazyTmp := range txs {
+			if txLazyTmp != nil && txLazyTmp.Resolve() != nil {
+				//found the same pointer in t.txs as tx and then shift t to the position one after tx
+				if tx == txLazyTmp.Tx.Tx {
+					txTmp := t.PeekWithUnwrap()
+					for txTmp != tx {
+						t.Shift()
+						txTmp = t.PeekWithUnwrap()
+					}
+					t.Shift()
+					return
+				}
+			}
+		}
+	}
 }

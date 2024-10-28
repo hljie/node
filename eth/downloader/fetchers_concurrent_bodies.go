@@ -19,10 +19,11 @@ package downloader
 import (
 	"time"
 
-	"node/eth/protocols/eth"
+	"bsc-node/eth/protocols/eth"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // bodyQueue implements typedQueue and is a type adapter between the generic
@@ -90,7 +91,7 @@ func (q *bodyQueue) request(peer *peerConnection, req *fetchRequest, resCh chan 
 // deliver is responsible for taking a generic response packet from the concurrent
 // fetcher, unpacking the body data and delivering it to the downloader's queue.
 func (q *bodyQueue) deliver(peer *peerConnection, packet *eth.Response) (int, error) {
-	txs, uncles, withdrawals := packet.Res.(*eth.BlockBodiesResponse).Unpack()
+	txs, uncles, withdrawals := packet.Res.(*eth.BlockBodiesPacket).Unpack()
 	hashsets := packet.Meta.([][]common.Hash) // {txs hashes, uncle hashes, withdrawal hashes}
 
 	accepted, err := q.queue.DeliverBodies(peer.id, txs, hashsets[0], uncles, hashsets[1], withdrawals, hashsets[2])

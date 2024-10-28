@@ -19,7 +19,7 @@ package legacypool
 import (
 	"sync"
 
-	"node/core/state"
+	"bsc-node/core/state"
 
 	"github.com/ethereum/go-ethereum/common"
 )

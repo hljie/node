@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"strings"
 
-	"node/p2p/enode"
-	"node/p2p/enr"
+	"bsc-node/p2p/enode"
+	"bsc-node/p2p/enr"
 )
 
 // Protocol represents a P2P subprotocol implementation.

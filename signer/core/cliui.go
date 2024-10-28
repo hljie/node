@@ -21,16 +21,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"node/internal/ethapi"
 	"os"
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/console/prompt"
+	"bsc-node/console/prompt"
+	"bsc-node/internal/ethapi"
+	"bsc-node/log"
 
-	// "github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	// "github.com/ethereum/go-ethereum/console/prompt"
+	// "bsc-node/internal/ethapi"
 )
 
 type CommandlineUI struct {

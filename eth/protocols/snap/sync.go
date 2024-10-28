@@ -29,24 +29,24 @@ import (
 	"sync/atomic"
 	"time"
 
-	"node/ethdb"
-	"node/p2p/msgrate"
-	"node/trie"
-	"node/trie/trienode"
+	"bsc-node/common/gopool"
+	"bsc-node/p2p/msgrate"
+	"bsc-node/trie"
+	"bsc-node/trie/trienode"
 
-	"node/core/rawdb"
-	"node/core/state"
-	"node/core/types"
+	"bsc-node/core/rawdb"
+	"bsc-node/core/state"
+	"bsc-node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
+	// "github.com/ethereum/go-ethereum/common/gopool"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
-
-	// "github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	// "github.com/ethereum/go-ethereum/trie"
@@ -1064,7 +1064,8 @@ func (s *Syncer) assignAccountTasks(success chan *accountResponse, fail chan *ac
 		delete(s.accountIdlers, idle)
 
 		s.pend.Add(1)
-		go func(root common.Hash) {
+		root := s.root
+		gopool.Submit(func() {
 			defer s.pend.Done()
 
 			// Attempt to send the remote request and revert if it fails
@@ -1078,7 +1079,7 @@ func (s *Syncer) assignAccountTasks(success chan *accountResponse, fail chan *ac
 				peer.Log().Debug("Failed to request account range", "err", err)
 				s.scheduleRevertAccountRequest(req)
 			}
-		}(s.root)
+		})
 
 		// Inject the request into the task to block further assignments
 		task.req = req
@@ -1175,7 +1176,7 @@ func (s *Syncer) assignBytecodeTasks(success chan *bytecodeResponse, fail chan *
 		delete(s.bytecodeIdlers, idle)
 
 		s.pend.Add(1)
-		go func() {
+		gopool.Submit(func() {
 			defer s.pend.Done()
 
 			// Attempt to send the remote request and revert if it fails
@@ -1183,7 +1184,7 @@ func (s *Syncer) assignBytecodeTasks(success chan *bytecodeResponse, fail chan *
 				log.Debug("Failed to request bytecodes", "err", err)
 				s.scheduleRevertBytecodeRequest(req)
 			}
-		}()
+		})
 	}
 }
 
@@ -1322,7 +1323,8 @@ func (s *Syncer) assignStorageTasks(success chan *storageResponse, fail chan *st
 		delete(s.storageIdlers, idle)
 
 		s.pend.Add(1)
-		go func(root common.Hash) {
+		root := s.root
+		gopool.Submit(func() {
 			defer s.pend.Done()
 
 			// Attempt to send the remote request and revert if it fails
@@ -1334,7 +1336,7 @@ func (s *Syncer) assignStorageTasks(success chan *storageResponse, fail chan *st
 				log.Debug("Failed to request storage", "err", err)
 				s.scheduleRevertStorageRequest(req)
 			}
-		}(s.root)
+		})
 
 		// Inject the request into the subtask to block further assignments
 		if subtask != nil {
@@ -1459,7 +1461,8 @@ func (s *Syncer) assignTrienodeHealTasks(success chan *trienodeHealResponse, fai
 		delete(s.trienodeHealIdlers, idle)
 
 		s.pend.Add(1)
-		go func(root common.Hash) {
+		root := s.root
+		gopool.Submit(func() {
 			defer s.pend.Done()
 
 			// Attempt to send the remote request and revert if it fails
@@ -1467,7 +1470,7 @@ func (s *Syncer) assignTrienodeHealTasks(success chan *trienodeHealResponse, fai
 				log.Debug("Failed to request trienode healers", "err", err)
 				s.scheduleRevertTrienodeHealRequest(req)
 			}
-		}(s.root)
+		})
 	}
 }
 
@@ -1575,7 +1578,7 @@ func (s *Syncer) assignBytecodeHealTasks(success chan *bytecodeHealResponse, fai
 		delete(s.bytecodeHealIdlers, idle)
 
 		s.pend.Add(1)
-		go func() {
+		gopool.Submit(func() {
 			defer s.pend.Done()
 
 			// Attempt to send the remote request and revert if it fails
@@ -1583,7 +1586,7 @@ func (s *Syncer) assignBytecodeHealTasks(success chan *bytecodeHealResponse, fai
 				log.Debug("Failed to request bytecode healers", "err", err)
 				s.scheduleRevertBytecodeHealRequest(req)
 			}
-		}()
+		})
 	}
 }
 
@@ -2508,7 +2511,13 @@ func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, acco
 	for i, node := range proof {
 		nodes[i] = node
 	}
-	cont, err := trie.VerifyRangeProof(root, req.origin[:], keys, accounts, nodes.Set())
+	proofdb := nodes.Set()
+
+	var end []byte
+	if len(keys) > 0 {
+		end = keys[len(keys)-1]
+	}
+	cont, err := trie.VerifyRangeProof(root, req.origin[:], end, keys, accounts, proofdb)
 	if err != nil {
 		logger.Warn("Account range failed proof", "err", err)
 		// Signal this request as failed, and ready for rescheduling
@@ -2760,7 +2769,7 @@ func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slo
 		if len(nodes) == 0 {
 			// No proof has been attached, the response must cover the entire key
 			// space and hash to the origin root.
-			_, err = trie.VerifyRangeProof(req.roots[i], nil, keys, slots[i], nil)
+			_, err = trie.VerifyRangeProof(req.roots[i], nil, nil, keys, slots[i], nil)
 			if err != nil {
 				s.scheduleRevertStorageRequest(req) // reschedule request
 				logger.Warn("Storage slots failed proof", "err", err)
@@ -2771,7 +2780,11 @@ func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slo
 			// returned data is indeed part of the storage trie
 			proofdb := nodes.Set()
 
-			cont, err = trie.VerifyRangeProof(req.roots[i], req.origin[:], keys, slots[i], proofdb)
+			var end []byte
+			if len(keys) > 0 {
+				end = keys[len(keys)-1]
+			}
+			cont, err = trie.VerifyRangeProof(req.roots[i], req.origin[:], end, keys, slots[i], proofdb)
 			if err != nil {
 				s.scheduleRevertStorageRequest(req) // reschedule request
 				logger.Warn("Storage range failed proof", "err", err)

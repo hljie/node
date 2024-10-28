@@ -24,13 +24,15 @@ import (
 	"sync"
 	"time"
 
-	"node/p2p/enode"
-	"node/p2p/enr"
+	"bsc-node/p2p/enode"
+	"bsc-node/p2p/enr"
+
+	"bsc-node/log"
+
+	"bsc-node/metrics"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/exp/slices"
 )
@@ -117,8 +119,31 @@ type Peer struct {
 	disc     chan DiscReason
 
 	// events receives message send / receive events if set
-	events   *event.Feed
-	testPipe *MsgPipeRW // for testing
+	events         *event.Feed
+	testPipe       *MsgPipeRW // for testing
+	testRemoteAddr string     // for testing
+}
+
+func (p *Peer) GetMes() {
+	conn := p.rw
+	if conn == nil {
+		fmt.Printf("无法获取节点 %s 的连接信息\n", p.Node().String())
+		return
+	}
+
+	p.wg.Add(1)
+	defer p.wg.Done()
+
+	fmt.Printf("节点: %s\n", p.Node().String())
+	msg, err := conn.ReadMsg()
+	if err != nil {
+		if err == io.EOF {
+			return
+		}
+		return
+	}
+	fmt.Printf("从节点 %s 收到消息: \n Code: %d,\n Size: %d\n", p.Node().String(), msg.Code, msg.Size)
+
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -146,6 +171,16 @@ func NewPeerPipe(id enode.ID, name string, caps []Cap, pipe *MsgPipeRW) *Peer {
 	p := NewPeer(id, name, caps)
 	p.testPipe = pipe
 	return p
+}
+
+// NewPeerWithProtocols returns a peer for testing purposes.
+func NewPeerWithProtocols(id enode.ID, protocols []Protocol, name string, caps []Cap) *Peer {
+	pipe, _ := net.Pipe()
+	node := enode.SignNull(new(enr.Record), id)
+	conn := &conn{fd: pipe, transport: nil, node: node, caps: caps, name: name}
+	peer := newPeer(log.Root(), conn, protocols)
+	close(peer.closed) // ensures Disconnect doesn't block
+	return peer
 }
 
 // ID returns the node's public key.
@@ -194,7 +229,24 @@ func (p *Peer) RunningCap(protocol string, versions []uint) bool {
 
 // RemoteAddr returns the remote address of the network connection.
 func (p *Peer) RemoteAddr() net.Addr {
+	if len(p.testRemoteAddr) > 0 {
+		if addr, err := net.ResolveTCPAddr("tcp", p.testRemoteAddr); err == nil {
+			return addr
+		}
+		log.Warn("RemoteAddr", "invalid testRemoteAddr", p.testRemoteAddr)
+	}
+	if p.rw == nil {
+		return nil
+	}
 	return p.rw.fd.RemoteAddr()
+}
+
+func (p *Peer) UpdateTestRemoteAddr(addr string) { // test purpose only
+	p.testRemoteAddr = addr
+}
+
+func (p *Peer) UpdateTrustFlagTest() { // test purpose only
+	p.rw.set(trustedConn, true)
 }
 
 // LocalAddr returns the local address of the network connection.
@@ -224,6 +276,11 @@ func (p *Peer) String() string {
 // Inbound returns true if the peer is an inbound connection
 func (p *Peer) Inbound() bool {
 	return p.rw.is(inboundConn)
+}
+
+// VerifyNode returns true if the peer is a verification connection
+func (p *Peer) VerifyNode() bool {
+	return p.rw.is(verifyConn)
 }
 
 func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {

@@ -20,25 +20,22 @@ import (
 	"bytes"
 	"sync"
 
-	"node/core/rawdb"
-	"node/core/types"
-	"node/ethdb"
-	"node/triedb"
+	"bsc-node/core/rawdb"
+	"bsc-node/core/types"
+	"bsc-node/trie"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/ethdb"
 
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/ethereum/go-ethereum/common"
-
-	// "github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
-	// "github.com/ethereum/go-ethereum/triedb"
+	// "github.com/ethereum/go-ethereum/trie"
 )
 
 // diskLayer is a low level persistent snapshot built on top of a key-value store.
 type diskLayer struct {
 	diskdb ethdb.KeyValueStore // Key-value store containing the base snapshot
-	triedb *triedb.Database    // Trie node cache for reconstruction purposes
+	triedb *trie.Database      // Trie node cache for reconstruction purposes
 	cache  *fastcache.Cache    // Cache to avoid hitting the disk for direct access
 
 	root  common.Hash // Root hash of the base snapshot
@@ -51,19 +48,22 @@ type diskLayer struct {
 	lock sync.RWMutex
 }
 
-// Release releases underlying resources; specifically the fastcache requires
-// Reset() in order to not leak memory.
-// OBS: It does not invoke Close on the diskdb
-func (dl *diskLayer) Release() error {
-	if dl.cache != nil {
-		dl.cache.Reset()
-	}
-	return nil
-}
-
 // Root returns  root hash for which this snapshot was made.
 func (dl *diskLayer) Root() common.Hash {
 	return dl.root
+}
+
+func (dl *diskLayer) WaitAndGetVerifyRes() bool {
+	return true
+}
+
+func (dl *diskLayer) MarkValid() {}
+
+func (dl *diskLayer) Verified() bool {
+	return true
+}
+
+func (dl *diskLayer) CorrectAccounts(map[common.Hash][]byte) {
 }
 
 // Parent always returns nil as there's no layer below the disk.
@@ -78,6 +78,12 @@ func (dl *diskLayer) Stale() bool {
 	defer dl.lock.RUnlock()
 
 	return dl.stale
+}
+
+// Accounts directly retrieves all accounts in current snapshot in
+// the snapshot slim data format.
+func (dl *diskLayer) Accounts() (map[common.Hash]*types.SlimAccount, error) {
+	return nil, nil
 }
 
 // Account directly retrieves the account associated with a particular hash in
@@ -178,6 +184,6 @@ func (dl *diskLayer) Storage(accountHash, storageHash common.Hash) ([]byte, erro
 // Update creates a new layer on top of the existing snapshot diff tree with
 // the specified data items. Note, the maps are retained by the method to avoid
 // copying everything.
-func (dl *diskLayer) Update(blockHash common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte) *diffLayer {
-	return newDiffLayer(dl, blockHash, destructs, accounts, storage)
+func (dl *diskLayer) Update(blockHash common.Hash, destructs map[common.Hash]struct{}, accounts map[common.Hash][]byte, storage map[common.Hash]map[common.Hash][]byte, verified chan struct{}) *diffLayer {
+	return newDiffLayer(dl, blockHash, destructs, accounts, storage, verified)
 }

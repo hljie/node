@@ -5,19 +5,13 @@ package ethconfig
 import (
 	"time"
 
-	"node/core"
-	"node/core/txpool/blobpool"
-	"node/core/txpool/legacypool"
-	"node/eth/downloader"
-	"node/eth/gasprice"
-	"node/miner"
-
 	"github.com/ethereum/go-ethereum/common"
-	// "node/core"
-	// "node/core/txpool/blobpool"
-	// "node/core/txpool/legacypool"
-	// "node/eth/downloader"
-	// "node/eth/gasprice"
+	"bsc-node/core"
+	"bsc-node/core/txpool/blobpool"
+	"bsc-node/core/txpool/legacypool"
+	"bsc-node/eth/downloader"
+	"bsc-node/eth/gasprice"
+	"bsc-node/miner"
 	// "github.com/ethereum/go-ethereum/miner"
 )
 
@@ -27,14 +21,23 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		Genesis                 *core.Genesis `toml:",omitempty"`
 		NetworkId               uint64
 		SyncMode                downloader.SyncMode
+		DisablePeerTxBroadcast  bool
 		EthDiscoveryURLs        []string
 		SnapDiscoveryURLs       []string
+		TrustDiscoveryURLs      []string
+		BscDiscoveryURLs        []string
 		NoPruning               bool
 		NoPrefetch              bool
+		DirectBroadcast         bool
+		DisableSnapProtocol     bool
+		EnableTrustProtocol     bool
+		PipeCommit              bool
+		RangeLimit              bool
 		TxLookupLimit           uint64                 `toml:",omitempty"`
 		TransactionHistory      uint64                 `toml:",omitempty"`
 		StateHistory            uint64                 `toml:",omitempty"`
 		StateScheme             string                 `toml:",omitempty"`
+		PathSyncFlush           bool                   `toml:",omitempty"`
 		RequiredBlocks          map[uint64]common.Hash `toml:"-"`
 		LightServ               int                    `toml:",omitempty"`
 		LightIngress            int                    `toml:",omitempty"`
@@ -46,10 +49,16 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		DatabaseHandles         int                    `toml:"-"`
 		DatabaseCache           int
 		DatabaseFreezer         string
+		DatabaseDiff            string
+		PersistDiff             bool
+		DiffBlock               uint64
+		PruneAncientData        bool
 		TrieCleanCache          int
 		TrieDirtyCache          int
 		TrieTimeout             time.Duration
 		SnapshotCache           int
+		TriesInMemory           uint64
+		TriesVerifyMode         core.VerifyMode
 		Preimages               bool
 		FilterLogCacheSize      int
 		Miner                   miner.Config
@@ -61,6 +70,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCGasCap               uint64
 		RPCEVMTimeout           time.Duration
 		RPCTxFeeCap             float64
+		OverrideShanghai        *uint64 `toml:",omitempty"`
+		OverrideKepler          *uint64 `toml:",omitempty"`
 		OverrideCancun          *uint64 `toml:",omitempty"`
 		OverrideVerkle          *uint64 `toml:",omitempty"`
 	}
@@ -68,14 +79,23 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.Genesis = c.Genesis
 	enc.NetworkId = c.NetworkId
 	enc.SyncMode = c.SyncMode
+	enc.DisablePeerTxBroadcast = c.DisablePeerTxBroadcast
 	enc.EthDiscoveryURLs = c.EthDiscoveryURLs
 	enc.SnapDiscoveryURLs = c.SnapDiscoveryURLs
+	enc.TrustDiscoveryURLs = c.TrustDiscoveryURLs
+	enc.BscDiscoveryURLs = c.BscDiscoveryURLs
 	enc.NoPruning = c.NoPruning
 	enc.NoPrefetch = c.NoPrefetch
+	enc.DirectBroadcast = c.DirectBroadcast
+	enc.DisableSnapProtocol = c.DisableSnapProtocol
+	enc.EnableTrustProtocol = c.EnableTrustProtocol
+	enc.PipeCommit = c.PipeCommit
+	enc.RangeLimit = c.RangeLimit
 	enc.TxLookupLimit = c.TxLookupLimit
 	enc.TransactionHistory = c.TransactionHistory
 	enc.StateHistory = c.StateHistory
 	enc.StateScheme = c.StateScheme
+	enc.PathSyncFlush = c.PathSyncFlush
 	enc.RequiredBlocks = c.RequiredBlocks
 	enc.LightServ = c.LightServ
 	enc.LightIngress = c.LightIngress
@@ -87,10 +107,16 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.DatabaseHandles = c.DatabaseHandles
 	enc.DatabaseCache = c.DatabaseCache
 	enc.DatabaseFreezer = c.DatabaseFreezer
+	enc.DatabaseDiff = c.DatabaseDiff
+	enc.PersistDiff = c.PersistDiff
+	enc.DiffBlock = c.DiffBlock
+	enc.PruneAncientData = c.PruneAncientData
 	enc.TrieCleanCache = c.TrieCleanCache
 	enc.TrieDirtyCache = c.TrieDirtyCache
 	enc.TrieTimeout = c.TrieTimeout
 	enc.SnapshotCache = c.SnapshotCache
+	enc.TriesInMemory = c.TriesInMemory
+	enc.TriesVerifyMode = c.TriesVerifyMode
 	enc.Preimages = c.Preimages
 	enc.FilterLogCacheSize = c.FilterLogCacheSize
 	enc.Miner = c.Miner
@@ -102,6 +128,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCGasCap = c.RPCGasCap
 	enc.RPCEVMTimeout = c.RPCEVMTimeout
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
+	enc.OverrideShanghai = c.OverrideShanghai
+	enc.OverrideKepler = c.OverrideKepler
 	enc.OverrideCancun = c.OverrideCancun
 	enc.OverrideVerkle = c.OverrideVerkle
 	return &enc, nil
@@ -113,14 +141,23 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		Genesis                 *core.Genesis `toml:",omitempty"`
 		NetworkId               *uint64
 		SyncMode                *downloader.SyncMode
+		DisablePeerTxBroadcast  *bool
 		EthDiscoveryURLs        []string
 		SnapDiscoveryURLs       []string
+		TrustDiscoveryURLs      []string
+		BscDiscoveryURLs        []string
 		NoPruning               *bool
 		NoPrefetch              *bool
+		DirectBroadcast         *bool
+		DisableSnapProtocol     *bool
+		EnableTrustProtocol     *bool
+		PipeCommit              *bool
+		RangeLimit              *bool
 		TxLookupLimit           *uint64                `toml:",omitempty"`
 		TransactionHistory      *uint64                `toml:",omitempty"`
 		StateHistory            *uint64                `toml:",omitempty"`
 		StateScheme             *string                `toml:",omitempty"`
+		PathSyncFlush           *bool                  `toml:",omitempty"`
 		RequiredBlocks          map[uint64]common.Hash `toml:"-"`
 		LightServ               *int                   `toml:",omitempty"`
 		LightIngress            *int                   `toml:",omitempty"`
@@ -132,10 +169,16 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		DatabaseHandles         *int                   `toml:"-"`
 		DatabaseCache           *int
 		DatabaseFreezer         *string
+		DatabaseDiff            *string
+		PersistDiff             *bool
+		DiffBlock               *uint64
+		PruneAncientData        *bool
 		TrieCleanCache          *int
 		TrieDirtyCache          *int
 		TrieTimeout             *time.Duration
 		SnapshotCache           *int
+		TriesInMemory           *uint64
+		TriesVerifyMode         *core.VerifyMode
 		Preimages               *bool
 		FilterLogCacheSize      *int
 		Miner                   *miner.Config
@@ -147,6 +190,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCGasCap               *uint64
 		RPCEVMTimeout           *time.Duration
 		RPCTxFeeCap             *float64
+		OverrideShanghai        *uint64 `toml:",omitempty"`
+		OverrideKepler          *uint64 `toml:",omitempty"`
 		OverrideCancun          *uint64 `toml:",omitempty"`
 		OverrideVerkle          *uint64 `toml:",omitempty"`
 	}
@@ -163,17 +208,41 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.SyncMode != nil {
 		c.SyncMode = *dec.SyncMode
 	}
+	if dec.DisablePeerTxBroadcast != nil {
+		c.DisablePeerTxBroadcast = *dec.DisablePeerTxBroadcast
+	}
 	if dec.EthDiscoveryURLs != nil {
 		c.EthDiscoveryURLs = dec.EthDiscoveryURLs
 	}
 	if dec.SnapDiscoveryURLs != nil {
 		c.SnapDiscoveryURLs = dec.SnapDiscoveryURLs
 	}
+	if dec.TrustDiscoveryURLs != nil {
+		c.TrustDiscoveryURLs = dec.TrustDiscoveryURLs
+	}
+	if dec.BscDiscoveryURLs != nil {
+		c.BscDiscoveryURLs = dec.BscDiscoveryURLs
+	}
 	if dec.NoPruning != nil {
 		c.NoPruning = *dec.NoPruning
 	}
 	if dec.NoPrefetch != nil {
 		c.NoPrefetch = *dec.NoPrefetch
+	}
+	if dec.DirectBroadcast != nil {
+		c.DirectBroadcast = *dec.DirectBroadcast
+	}
+	if dec.DisableSnapProtocol != nil {
+		c.DisableSnapProtocol = *dec.DisableSnapProtocol
+	}
+	if dec.EnableTrustProtocol != nil {
+		c.EnableTrustProtocol = *dec.EnableTrustProtocol
+	}
+	if dec.PipeCommit != nil {
+		c.PipeCommit = *dec.PipeCommit
+	}
+	if dec.RangeLimit != nil {
+		c.RangeLimit = *dec.RangeLimit
 	}
 	if dec.TxLookupLimit != nil {
 		c.TxLookupLimit = *dec.TxLookupLimit
@@ -186,6 +255,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.StateScheme != nil {
 		c.StateScheme = *dec.StateScheme
+	}
+	if dec.PathSyncFlush != nil {
+		c.PathSyncFlush = *dec.PathSyncFlush
 	}
 	if dec.RequiredBlocks != nil {
 		c.RequiredBlocks = dec.RequiredBlocks
@@ -220,6 +292,18 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.DatabaseFreezer != nil {
 		c.DatabaseFreezer = *dec.DatabaseFreezer
 	}
+	if dec.DatabaseDiff != nil {
+		c.DatabaseDiff = *dec.DatabaseDiff
+	}
+	if dec.PersistDiff != nil {
+		c.PersistDiff = *dec.PersistDiff
+	}
+	if dec.DiffBlock != nil {
+		c.DiffBlock = *dec.DiffBlock
+	}
+	if dec.PruneAncientData != nil {
+		c.PruneAncientData = *dec.PruneAncientData
+	}
 	if dec.TrieCleanCache != nil {
 		c.TrieCleanCache = *dec.TrieCleanCache
 	}
@@ -231,6 +315,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.SnapshotCache != nil {
 		c.SnapshotCache = *dec.SnapshotCache
+	}
+	if dec.TriesInMemory != nil {
+		c.TriesInMemory = *dec.TriesInMemory
+	}
+	if dec.TriesVerifyMode != nil {
+		c.TriesVerifyMode = *dec.TriesVerifyMode
 	}
 	if dec.Preimages != nil {
 		c.Preimages = *dec.Preimages
@@ -264,6 +354,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.RPCTxFeeCap != nil {
 		c.RPCTxFeeCap = *dec.RPCTxFeeCap
+	}
+	if dec.OverrideShanghai != nil {
+		c.OverrideShanghai = dec.OverrideShanghai
+	}
+	if dec.OverrideKepler != nil {
+		c.OverrideKepler = dec.OverrideKepler
 	}
 	if dec.OverrideCancun != nil {
 		c.OverrideCancun = dec.OverrideCancun

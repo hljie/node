@@ -17,9 +17,9 @@
 package beacon
 
 import (
+	"bsc-node/consensus"
+	"bsc-node/core/types"
 	"math/big"
-	"node/consensus"
-	"node/core/types"
 	// "github.com/ethereum/go-ethereum/consensus"
 	// "github.com/ethereum/go-ethereum/core/types"
 )

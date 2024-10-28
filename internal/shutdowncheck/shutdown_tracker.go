@@ -17,14 +17,15 @@
 package shutdowncheck
 
 import (
-	"node/core/rawdb"
-	"node/ethdb"
 	"time"
+
+	"bsc-node/core/rawdb"
+	"bsc-node/ethdb"
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/rawdb"
 	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // ShutdownTracker is a service that reports previous unclean shutdowns

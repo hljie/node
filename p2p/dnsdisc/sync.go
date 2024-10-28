@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"time"
 
-	"node/p2p/enode"
+	"bsc-node/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
 )

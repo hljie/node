@@ -18,9 +18,9 @@
 package accounts
 
 import (
+	"bsc-node/core/types"
 	"fmt"
 	"math/big"
-	"node/core/types"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -41,6 +41,7 @@ const (
 	MimetypeDataWithValidator = "data/validator"
 	MimetypeTypedData         = "data/typed"
 	MimetypeClique            = "application/x-clique-header"
+	MimetypeParlia            = "application/x-parlia-header"
 	MimetypeTextPlain         = "text/plain"
 )
 

@@ -17,18 +17,17 @@
 package eth
 
 import (
-	"errors"
 	"math/big"
 	"time"
 
-	"node/core/rawdb"
-	"node/core/txpool"
+	"bsc-node/core/rawdb"
 
-	"node/eth/downloader"
-	"node/eth/protocols/eth"
+	"bsc-node/eth/downloader"
+	"bsc-node/eth/protocols/eth"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -39,7 +38,7 @@ const (
 // syncTransactions starts sending all currently pending transactions to the given peer.
 func (h *handler) syncTransactions(p *eth.Peer) {
 	var hashes []common.Hash
-	for _, batch := range h.txpool.Pending(txpool.PendingFilter{OnlyPlainTxs: true}) {
+	for _, batch := range h.txpool.Pending(false) {
 		for _, tx := range batch {
 			hashes = append(hashes, tx.Hash)
 		}
@@ -48,6 +47,15 @@ func (h *handler) syncTransactions(p *eth.Peer) {
 		return
 	}
 	p.AsyncSendPooledTransactionHashes(hashes)
+}
+
+// syncVotes starts sending all currently pending votes to the given peer.
+func (h *handler) syncVotes(p *bscPeer) {
+	votes := h.votepool.GetVotes()
+	if len(votes) == 0 {
+		return
+	}
+	p.AsyncSendVotes(votes)
 }
 
 // chainSyncer coordinates blockchain sync components.
@@ -110,18 +118,10 @@ func (cs *chainSyncer) loop() {
 		select {
 		case <-cs.peerEventCh:
 			// Peer information changed, recheck.
-		case err := <-cs.doneCh:
+		case <-cs.doneCh:
 			cs.doneCh = nil
 			cs.force.Reset(forceSyncCycle)
 			cs.forced = false
-
-			// If we've reached the merge transition but no beacon client is available, or
-			// it has not yet switched us over, keep warning the user that their infra is
-			// potentially flaky.
-			if errors.Is(err, downloader.ErrMergeTransition) && time.Since(cs.warned) > 10*time.Second {
-				log.Warn("Local chain is post-merge, waiting for beacon client sync switch-over...")
-				cs.warned = time.Now()
-			}
 		case <-cs.force.C:
 			cs.forced = true
 
@@ -200,25 +200,20 @@ func (cs *chainSyncer) modeAndLocalHead() (downloader.SyncMode, *big.Int) {
 		return downloader.SnapSync, td
 	}
 	// We are probably in full sync, but we might have rewound to before the
-	// snap sync pivot, check if we should re-enable snap sync.
-	head := cs.handler.chain.CurrentBlock()
+	// snap sync pivot, check if we should reenable
 	if pivot := rawdb.ReadLastPivotNumber(cs.handler.database); pivot != nil {
-		if head.Number.Uint64() < *pivot {
+		if head := cs.handler.chain.CurrentBlock(); head.Number.Uint64() < *pivot {
+			if rawdb.ReadAncientType(cs.handler.database) == rawdb.PruneFreezerType {
+				log.Crit("Current rewound to before the fast sync pivot, can't enable pruneancient mode", "current block number", head.Number.Uint64(), "pivot", *pivot)
+			}
 			block := cs.handler.chain.CurrentSnapBlock()
 			td := cs.handler.chain.GetTd(block.Hash(), block.Number.Uint64())
 			return downloader.SnapSync, td
 		}
 	}
-	// We are in a full sync, but the associated head state is missing. To complete
-	// the head state, forcefully rerun the snap sync. Note it doesn't mean the
-	// persistent state is corrupted, just mismatch with the head block.
-	if !cs.handler.chain.HasState(head.Root) {
-		block := cs.handler.chain.CurrentSnapBlock()
-		td := cs.handler.chain.GetTd(block.Hash(), block.Number.Uint64())
-		log.Info("Reenabled snap sync as chain is stateless")
-		return downloader.SnapSync, td
-	}
+
 	// Nope, we're really full syncing
+	head := cs.handler.chain.CurrentBlock()
 	td := cs.handler.chain.GetTd(head.Hash(), head.Number.Uint64())
 	return downloader.FullSync, td
 }
@@ -231,12 +226,36 @@ func (cs *chainSyncer) startSync(op *chainSyncOp) {
 
 // doSync synchronizes the local blockchain with a remote peer.
 func (h *handler) doSync(op *chainSyncOp) error {
+	if op.mode == downloader.SnapSync {
+		// Before launch the snap sync, we have to ensure user uses the same
+		// txlookup limit.
+		// The main concern here is: during the snap sync Geth won't index the
+		// block(generate tx indices) before the HEAD-limit. But if user changes
+		// the limit in the next snap sync(e.g. user kill Geth manually and
+		// restart) then it will be hard for Geth to figure out the oldest block
+		// has been indexed. So here for the user-experience wise, it's non-optimal
+		// that user can't change limit during the snap sync. If changed, Geth
+		// will just blindly use the original one.
+		limit := h.chain.TxLookupLimit()
+		if stored := rawdb.ReadFastTxLookupLimit(h.database); stored == nil {
+			rawdb.WriteFastTxLookupLimit(h.database, limit)
+		} else if *stored != limit {
+			h.chain.SetTxLookupLimit(*stored)
+			log.Warn("Update txLookup limit", "provided", limit, "updated", *stored)
+		}
+	}
 	// Run the sync cycle, and disable snap sync if we're past the pivot block
 	err := h.downloader.LegacySync(op.peer.ID(), op.head, op.td, h.chain.Config().TerminalTotalDifficulty, op.mode)
 	if err != nil {
 		return err
 	}
-	h.enableSyncedFeatures()
+	if h.snapSync.Load() {
+		log.Info("Snap sync complete, auto disabling")
+		h.snapSync.Store(false)
+	}
+	// If we've successfully finished a sync cycle, enable accepting transactions
+	// from the network.
+	h.acceptTxs.Store(true)
 
 	head := h.chain.CurrentBlock()
 	if head.Number.Uint64() > 0 {

@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"node/core/vm"
+	"bsc-node/core/vm"
 
-	"node/eth/tracers"
+	"bsc-node/eth/tracers"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -112,6 +112,12 @@ func (t *muxTracer) CaptureTxStart(gasLimit uint64) {
 func (t *muxTracer) CaptureTxEnd(restGas uint64) {
 	for _, t := range t.tracers {
 		t.CaptureTxEnd(restGas)
+	}
+}
+
+func (t *muxTracer) CaptureSystemTxEnd(intrinsicGas uint64) {
+	for _, t := range t.tracers {
+		t.CaptureSystemTxEnd(intrinsicGas)
 	}
 }
 

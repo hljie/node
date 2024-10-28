@@ -25,8 +25,8 @@ import (
 	"io"
 	"strings"
 
-	"node/p2p/enode"
-	"node/p2p/enr"
+	"bsc-node/p2p/enode"
+	"bsc-node/p2p/enr"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -345,11 +345,11 @@ func parseLink(e string) (*linkEntry, error) {
 		return nil, fmt.Errorf("wrong/missing scheme 'enrtree' in URL")
 	}
 	e = e[len(linkPrefix):]
-
-	keystring, domain, found := strings.Cut(e, "@")
-	if !found {
+	pos := strings.IndexByte(e, '@')
+	if pos == -1 {
 		return nil, entryError{"link", errNoPubkey}
 	}
+	keystring, domain := e[:pos], e[pos+1:]
 	keybytes, err := b32format.DecodeString(keystring)
 	if err != nil {
 		return nil, entryError{"link", errBadPubkey}

@@ -17,12 +17,11 @@
 package triestate
 
 import (
+	"bsc-node/core/types"
+	"bsc-node/trie/trienode"
 	"errors"
 	"fmt"
 	"sync"
-
-	"node/core/types"
-	"node/trie/trienode"
 
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/types"

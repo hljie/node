@@ -26,9 +26,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/log"
+	"bsc-node/log"
+
 	"github.com/jedisct1/go-minisign"
-	// "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2"
 )
 
 var gethPubKeys []string = []string{
@@ -54,12 +55,12 @@ type vulnJson struct {
 	CVE         string
 }
 
-// func versionCheck(ctx *cli.Context) error {
-// 	url := ctx.String(VersionCheckUrlFlag.Name)
-// 	version := ctx.String(VersionCheckVersionFlag.Name)
-// 	log.Info("Checking vulnerabilities", "version", version, "url", url)
-// 	return checkCurrent(url, version)
-// }
+func versionCheck(ctx *cli.Context) error {
+	url := ctx.String(VersionCheckUrlFlag.Name)
+	version := ctx.String(VersionCheckVersionFlag.Name)
+	log.Info("Checking vulnerabilities", "version", version, "url", url)
+	return checkCurrent(url, version)
+}
 
 func checkCurrent(url, current string) error {
 	var (

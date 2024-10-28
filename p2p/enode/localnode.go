@@ -26,10 +26,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"node/p2p/enr"
-	"node/p2p/netutil"
+	"bsc-node/p2p/enr"
+	"bsc-node/p2p/netutil"
 
-	"github.com/ethereum/go-ethereum/log"
+	"bsc-node/log"
 )
 
 const (

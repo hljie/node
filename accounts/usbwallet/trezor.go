@@ -27,9 +27,10 @@ import (
 	"io"
 	"math/big"
 
-	"node/accounts"
-	"node/accounts/usbwallet/trezor"
-	"node/core/types"
+	"bsc-node/accounts"
+	"bsc-node/accounts/usbwallet/trezor"
+	"bsc-node/core/types"
+	"bsc-node/log"
 
 	// "github.com/ethereum/go-ethereum/accounts"
 	// "github.com/ethereum/go-ethereum/accounts/usbwallet/trezor"
@@ -37,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	// "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"
 )
 

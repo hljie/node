@@ -20,16 +20,14 @@ import (
 	"context"
 	"time"
 
-	"node/core/bloombits"
-	"node/core/rawdb"
-	"node/core/types"
-	"node/ethdb"
+	"bsc-node/core/bloombits"
+	"bsc-node/core/rawdb"
+	"bsc-node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/ethdb"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/bitutil"
-	// "github.com/ethereum/go-ethereum/ethdb"
 )
 
 const (

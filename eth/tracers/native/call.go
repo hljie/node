@@ -22,14 +22,16 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"node/core/vm"
+	"bsc-node/accounts/abi"
+	"bsc-node/core/vm"
 
-	"node/eth/tracers"
+	"bsc-node/eth/tracers"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"bsc-node/log"
+
+	// "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 //go:generate go run github.com/fjl/gencodec -type callFrame -field-override callFrameMarshaling -out gen_callframe_json.go
@@ -42,9 +44,6 @@ type callLog struct {
 	Address common.Address `json:"address"`
 	Topics  []common.Hash  `json:"topics"`
 	Data    hexutil.Bytes  `json:"data"`
-	// Position of the log relative to subcalls within the same trace
-	// See https://github.com/ethereum/go-ethereum/pull/28389 for details
-	Position hexutil.Uint `json:"position"`
 }
 
 type callFrame struct {
@@ -163,7 +162,7 @@ func (t *callTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 		return
 	}
 	// Avoid processing nested calls when only caring about top call
-	if t.config.OnlyTopCall && depth > 1 {
+	if t.config.OnlyTopCall && depth > 0 {
 		return
 	}
 	// Skip if tracing was interrupted
@@ -193,12 +192,7 @@ func (t *callTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 			return
 		}
 
-		log := callLog{
-			Address:  scope.Contract.Address(),
-			Topics:   topics,
-			Data:     hexutil.Bytes(data),
-			Position: hexutil.Uint(len(t.callstack[len(t.callstack)-1].Calls)),
-		}
+		log := callLog{Address: scope.Contract.Address(), Topics: topics, Data: hexutil.Bytes(data)}
 		t.callstack[len(t.callstack)-1].Logs = append(t.callstack[len(t.callstack)-1].Logs, log)
 	}
 }
@@ -255,6 +249,10 @@ func (t *callTracer) CaptureTxEnd(restGas uint64) {
 		// Logs are not emitted when the call fails
 		clearFailedLogs(&t.callstack[0], false)
 	}
+}
+
+func (t *callTracer) CaptureSystemTxEnd(intrinsicGas uint64) {
+	t.callstack[0].GasUsed -= intrinsicGas
 }
 
 // GetResult returns the json-encoded nested list of call traces, and any

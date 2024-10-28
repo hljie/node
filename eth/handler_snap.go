@@ -17,11 +17,11 @@
 package eth
 
 import (
-	"node/p2p/enode"
+	"bsc-node/p2p/enode"
 
-	"node/core"
+	"bsc-node/core"
 
-	"node/eth/protocols/snap"
+	"bsc-node/eth/protocols/snap"
 )
 
 // snapHandler implements the snap.Backend interface to handle the various network

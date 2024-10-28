@@ -18,10 +18,10 @@ package downloader
 
 import (
 	"fmt"
-	"node/core/types"
 	"sync"
 	"sync/atomic"
-	// "github.com/ethereum/go-ethereum/core/types"
+
+	"bsc-node/core/types"
 )
 
 // resultStore implements a structure for maintaining fetchResults, tracking their
@@ -76,7 +76,7 @@ func (r *resultStore) SetThrottleThreshold(threshold uint64) uint64 {
 //	throttled - if true, the store is at capacity, this particular header is not prio now
 //	item      - the result to store data into
 //	err       - any error that occurred
-func (r *resultStore) AddFetch(header *types.Header, fastSync bool) (stale, throttled bool, item *fetchResult, err error) {
+func (r *resultStore) AddFetch(header *types.Header, fastSync bool, pid string) (stale, throttled bool, item *fetchResult, err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -86,7 +86,7 @@ func (r *resultStore) AddFetch(header *types.Header, fastSync bool) (stale, thro
 		return stale, throttled, item, err
 	}
 	if item == nil {
-		item = newFetchResult(header, fastSync)
+		item = newFetchResult(header, fastSync, pid)
 		r.items[index] = item
 	}
 	return stale, throttled, item, err
@@ -142,7 +142,7 @@ func (r *resultStore) HasCompletedItems() bool {
 // countCompleted returns the number of items ready for delivery, stopping at
 // the first non-complete item.
 //
-// The method assumes (at least) rlock is held.
+// The mthod assumes (at least) rlock is held.
 func (r *resultStore) countCompleted() int {
 	// We iterate from the already known complete point, and see
 	// if any more has completed since last count

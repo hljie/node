@@ -20,13 +20,12 @@ import (
 	"fmt"
 	"sync"
 
-	"node/ethdb"
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-
-	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -295,11 +294,6 @@ func ReadStateScheme(db ethdb.Reader) string {
 	if len(blob) != 0 {
 		return PathScheme
 	}
-	// The root node might be deleted during the initial snap sync, check
-	// the persistent state id then.
-	if id := ReadPersistentStateID(db); id != 0 {
-		return PathScheme
-	}
 	// In a hash-based scheme, the genesis state is consistently stored
 	// on the disk. To assess the scheme of the persistent state, it
 	// suffices to inspect the scheme of the genesis state.
@@ -312,6 +306,15 @@ func ReadStateScheme(db ethdb.Reader) string {
 		return "" // no state in disk
 	}
 	return HashScheme
+}
+
+// ValidateStateScheme used to check state scheme whether is valid.
+// Valid state scheme: hash and path.
+func ValidateStateScheme(stateScheme string) bool {
+	if stateScheme == HashScheme || stateScheme == PathScheme {
+		return true
+	}
+	return false
 }
 
 // ParseStateScheme checks if the specified state scheme is compatible with
@@ -334,10 +337,10 @@ func ParseStateScheme(provided string, disk ethdb.Database) (string, error) {
 		if stored == "" {
 			// use default scheme for empty database, flip it when
 			// path mode is chosen as default
-			log.Info("State schema set to default", "scheme", "hash")
+			log.Info("State scheme set to default", "scheme", "hash")
 			return HashScheme, nil
 		}
-		log.Info("State scheme set to already existing", "scheme", stored)
+		log.Info("State scheme set to already existing disk db", "scheme", stored)
 		return stored, nil // reuse scheme of persistent scheme
 	}
 	// If state scheme is specified, ensure it's compatible with
@@ -346,5 +349,5 @@ func ParseStateScheme(provided string, disk ethdb.Database) (string, error) {
 		log.Info("State scheme set by user", "scheme", provided)
 		return provided, nil
 	}
-	return "", fmt.Errorf("incompatible state scheme, stored: %s, provided: %s", stored, provided)
+	return "", fmt.Errorf("incompatible state scheme, stored: %s, user provided: %s", stored, provided)
 }

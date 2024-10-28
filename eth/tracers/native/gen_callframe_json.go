@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"node/core/vm"
+	"bsc-node/core/vm"
 )
 
 var _ = (*callFrameMarshaling)(nil)

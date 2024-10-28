@@ -28,8 +28,9 @@ import (
 	"io"
 	"math/big"
 
-	"node/accounts"
-	"node/core/types"
+	"bsc-node/accounts"
+	"bsc-node/core/types"
+	"bsc-node/log"
 
 	// "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,7 +38,6 @@ import (
 
 	// "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -283,7 +283,7 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, er
 	}
 	hexstr := reply[1 : 1+int(reply[0])]
 
-	// Decode the hex string into an Ethereum address and return
+	// Decode the hex sting into an Ethereum address and return
 	var address common.Address
 	if _, err = hex.Decode(address[:], hexstr); err != nil {
 		return common.Address{}, err

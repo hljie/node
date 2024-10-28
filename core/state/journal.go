@@ -17,8 +17,9 @@
 package state
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/holiman/uint256"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -42,7 +43,8 @@ type journal struct {
 // newJournal creates a new initialized journal.
 func newJournal() *journal {
 	return &journal{
-		dirties: make(map[common.Address]int),
+		dirties: make(map[common.Address]int, defaultNumOfSlots),
+		entries: make([]journalEntry, 0, defaultNumOfSlots),
 	}
 }
 
@@ -102,13 +104,13 @@ type (
 	selfDestructChange struct {
 		account     *common.Address
 		prev        bool // whether account had already self-destructed
-		prevbalance *uint256.Int
+		prevbalance *big.Int
 	}
 
 	// Changes to individual accounts.
 	balanceChange struct {
 		account *common.Address
-		prev    *uint256.Int
+		prev    *big.Int
 	}
 	nonceChange struct {
 		account *common.Address
@@ -284,7 +286,9 @@ func (ch accessListAddAccountChange) revert(s *StateDB) {
 		(addr) at this point, since no storage adds can remain when come upon
 		a single (addr) change.
 	*/
-	s.accessList.DeleteAddress(*ch.address)
+	if s.accessList != nil {
+		s.accessList.DeleteAddress(*ch.address)
+	}
 }
 
 func (ch accessListAddAccountChange) dirtied() *common.Address {
@@ -292,7 +296,9 @@ func (ch accessListAddAccountChange) dirtied() *common.Address {
 }
 
 func (ch accessListAddSlotChange) revert(s *StateDB) {
-	s.accessList.DeleteSlot(*ch.address, *ch.slot)
+	if s.accessList != nil {
+		s.accessList.DeleteSlot(*ch.address, *ch.slot)
+	}
 }
 
 func (ch accessListAddSlotChange) dirtied() *common.Address {

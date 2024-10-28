@@ -18,11 +18,11 @@ package utils
 
 import (
 	"fmt"
-	"node/eth/ethconfig"
-	"node/internal/flags"
+
+	"bsc-node/eth/ethconfig"
+	"bsc-node/internal/flags"
 
 	// "github.com/ethereum/go-ethereum/eth/ethconfig"
-	// "github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 
@@ -47,8 +47,6 @@ var DeprecatedFlags = []cli.Flag{
 	LightMaxPeersFlag,
 	LightNoPruneFlag,
 	LightNoSyncServeFlag,
-	LogBacktraceAtFlag,
-	LogDebugFlag,
 }
 
 var (
@@ -121,18 +119,6 @@ var (
 		Name:     "light.nosyncserve",
 		Usage:    "Enables serving light clients before syncing (deprecated)",
 		Category: flags.LightCategory,
-	}
-	// Deprecated November 2023
-	LogBacktraceAtFlag = &cli.StringFlag{
-		Name:     "log.backtrace",
-		Usage:    "Request a stack trace at a specific logging statement (deprecated)",
-		Value:    "",
-		Category: flags.DeprecatedCategory,
-	}
-	LogDebugFlag = &cli.BoolFlag{
-		Name:     "log.debug",
-		Usage:    "Prepends log messages with call-site location (deprecated)",
-		Category: flags.DeprecatedCategory,
 	}
 )
 

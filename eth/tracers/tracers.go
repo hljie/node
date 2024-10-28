@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"node/core/vm"
+	"bsc-node/core/vm"
 
 	"github.com/ethereum/go-ethereum/common"
 )

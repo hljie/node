@@ -18,9 +18,9 @@
 package ethash
 
 import (
-	"node/consensus"
-	"node/core/types"
-	"node/rpc"
+	"bsc-node/consensus"
+	"bsc-node/core/types"
+	"bsc-node/rpc"
 	"time"
 	// "github.com/ethereum/go-ethereum/consensus"
 	// "github.com/ethereum/go-ethereum/core/types"

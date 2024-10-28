@@ -26,7 +26,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"bsc-node/common/gopool"
+
 	"github.com/ethereum/go-ethereum/common/bitutil"
+	// "github.com/ethereum/go-ethereum/common/gopool"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -58,7 +61,7 @@ type partialMatches struct {
 // bit with the given number of fetch elements, or a response for such a request.
 // It can also have the actual results set to be used as a delivery data struct.
 //
-// The context and error fields are used by the light client to terminate matching
+// The contest and error fields are used by the light client to terminate matching
 // early if an error is encountered on some path of the pipeline.
 type Retrieval struct {
 	Bit      uint
@@ -164,7 +167,7 @@ func (m *Matcher) Start(ctx context.Context, begin, end uint64, results chan uin
 
 	// Read the output from the result sink and deliver to the user
 	session.pend.Add(1)
-	go func() {
+	gopool.Submit(func() {
 		defer session.pend.Done()
 		defer close(results)
 
@@ -210,7 +213,7 @@ func (m *Matcher) Start(ctx context.Context, begin, end uint64, results chan uin
 				}
 			}
 		}
-	}()
+	})
 	return session, nil
 }
 
@@ -226,7 +229,7 @@ func (m *Matcher) run(begin, end uint64, buffer int, session *MatcherSession) ch
 	source := make(chan *partialMatches, buffer)
 
 	session.pend.Add(1)
-	go func() {
+	gopool.Submit(func() {
 		defer session.pend.Done()
 		defer close(source)
 
@@ -237,7 +240,7 @@ func (m *Matcher) run(begin, end uint64, buffer int, session *MatcherSession) ch
 			case source <- &partialMatches{i, bytes.Repeat([]byte{0xff}, int(m.sectionSize/8))}:
 			}
 		}
-	}()
+	})
 	// Assemble the daisy-chained filtering pipeline
 	next := source
 	dist := make(chan *request, buffer)
@@ -247,7 +250,9 @@ func (m *Matcher) run(begin, end uint64, buffer int, session *MatcherSession) ch
 	}
 	// Start the request distribution
 	session.pend.Add(1)
-	go m.distributor(dist, session)
+	gopool.Submit(func() {
+		m.distributor(dist, session)
+	})
 
 	return next
 }
@@ -273,7 +278,7 @@ func (m *Matcher) subMatch(source chan *partialMatches, dist chan *request, bloo
 	results := make(chan *partialMatches, cap(source))
 
 	session.pend.Add(2)
-	go func() {
+	gopool.Submit(func() {
 		// Tear down the goroutine and terminate all source channels
 		defer session.pend.Done()
 		defer close(process)
@@ -314,9 +319,9 @@ func (m *Matcher) subMatch(source chan *partialMatches, dist chan *request, bloo
 				}
 			}
 		}
-	}()
+	})
 
-	go func() {
+	gopool.Submit(func() {
 		// Tear down the goroutine and terminate the final sink channel
 		defer session.pend.Done()
 		defer close(results)
@@ -372,7 +377,7 @@ func (m *Matcher) subMatch(source chan *partialMatches, dist chan *request, bloo
 				}
 			}
 		}
-	}()
+	})
 	return results
 }
 
@@ -389,7 +394,7 @@ func (m *Matcher) distributor(dist chan *request, session *MatcherSession) {
 		shutdown   = session.quit            // Shutdown request channel, will gracefully wait for pending requests
 	)
 
-	// assign is a helper method to try to assign a pending bit an actively
+	// assign is a helper method fo try to assign a pending bit an actively
 	// listening servicer, or schedule it up for later when one arrives.
 	assign := func(bit uint) {
 		select {

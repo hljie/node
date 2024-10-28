@@ -18,13 +18,14 @@ package trie
 
 import (
 	"bytes"
-	"errors"
 	"sync"
 
+	"bsc-node/core/types"
+	"bsc-node/log"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
+	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/metrics"
 )
 
 var (
@@ -93,14 +94,12 @@ func NewStackTrie(options *StackTrieOptions) *StackTrie {
 
 // Update inserts a (key, value) pair into the stack trie.
 func (t *StackTrie) Update(key, value []byte) error {
-	if len(value) == 0 {
-		return errors.New("trying to insert empty (deletion)")
-	}
 	k := keybytesToHex(key)
-	k = k[:len(k)-1] // chop the termination flag
-	if bytes.Compare(t.last, k) >= 0 {
-		return errors.New("non-ascending key order")
+	if len(value) == 0 {
+		panic("deletion not supported")
 	}
+	k = k[:len(k)-1] // chop the termination flag
+
 	// track the first and last inserted entries.
 	if t.first == nil {
 		t.first = append([]byte{}, k...)

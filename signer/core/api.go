@@ -23,16 +23,18 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"node/accounts"
-	"node/accounts/keystore"
-	"node/accounts/scwallet"
-	"node/accounts/usbwallet"
-	"node/internal/ethapi"
-	"node/rpc"
-	"node/signer/core/apitypes"
-	"node/signer/storage"
 	"os"
 	"reflect"
+
+	"bsc-node/accounts"
+	"bsc-node/accounts/keystore"
+	"bsc-node/accounts/scwallet"
+	"bsc-node/accounts/usbwallet"
+	"bsc-node/internal/ethapi"
+	"bsc-node/log"
+	"bsc-node/rpc"
+	"bsc-node/signer/core/apitypes"
+	"bsc-node/signer/storage"
 
 	// "github.com/ethereum/go-ethereum/accounts"
 	// "github.com/ethereum/go-ethereum/accounts/keystore"
@@ -41,9 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
-
-	// "github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
+	// "bsc-node/internal/ethapi"
 	// "github.com/ethereum/go-ethereum/rpc"
 	// "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	// "github.com/ethereum/go-ethereum/signer/storage"
@@ -74,7 +74,7 @@ type ExternalAPI interface {
 	EcRecover(ctx context.Context, data hexutil.Bytes, sig hexutil.Bytes) (common.Address, error)
 	// Version info about the APIs
 	Version(ctx context.Context) (string, error)
-	// SignGnosisSafeTx signs/confirms a gnosis-safe multisig transaction
+	// SignGnosisSafeTransaction signs/confirms a gnosis-safe multisig transaction
 	SignGnosisSafeTx(ctx context.Context, signerAddress common.MixedcaseAddress, gnosisTx GnosisSafeTx, methodSelector *string) (*GnosisSafeTx, error)
 }
 
@@ -640,7 +640,7 @@ func (api *SignerAPI) SignGnosisSafeTx(ctx context.Context, signerAddress common
 		}
 	}
 	typedData := gnosisTx.ToTypedData()
-	// might as well error early.
+	// might aswell error early.
 	// we are expected to sign. If our calculated hash does not match what they want,
 	// The gnosis safetx input contains a 'safeTxHash' which is the expected safeTxHash that
 	sighash, _, err := apitypes.TypedDataAndHash(typedData)

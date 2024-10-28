@@ -19,8 +19,9 @@ package downloader
 import (
 	"sync"
 
+	"bsc-node/log"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // syncState starts downloading state with the given root hash.

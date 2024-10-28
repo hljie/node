@@ -22,16 +22,15 @@ import (
 	"errors"
 	"time"
 
-	"node/core/rawdb"
-	"node/ethdb"
-	"node/ethdb/memorydb"
+	"bsc-node/core/rawdb"
+
+	"bsc-node/ethdb"
+	"bsc-node/ethdb/memorydb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-
-	// "github.com/ethereum/go-ethereum/ethdb"
-	// "github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const (

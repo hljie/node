@@ -17,8 +17,8 @@
 package ethash
 
 import (
+	"bsc-node/core/types"
 	"math/big"
-	"node/core/types"
 
 	// "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"

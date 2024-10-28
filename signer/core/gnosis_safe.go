@@ -17,9 +17,9 @@
 package core
 
 import (
+	"bsc-node/signer/core/apitypes"
 	"fmt"
 	"math/big"
-	"node/signer/core/apitypes"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"

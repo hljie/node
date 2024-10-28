@@ -18,11 +18,15 @@ package rawdb
 
 import (
 	"fmt"
-	"node/ethdb"
 	"path/filepath"
 
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
+
+	"bsc-node/metrics"
+
 	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/ethdb"
 )
 
 type tableSize struct {
@@ -82,14 +86,14 @@ func inspectFreezers(db ethdb.Database) ([]freezerInfo, error) {
 	var infos []freezerInfo
 	for _, freezer := range freezers {
 		switch freezer {
-		case ChainFreezerName:
-			info, err := inspect(ChainFreezerName, chainFreezerNoSnappy, db)
+		case chainFreezerName:
+			info, err := inspect(chainFreezerName, chainFreezerNoSnappy, db)
 			if err != nil {
 				return nil, err
 			}
 			infos = append(infos, info)
 
-		case StateFreezerName:
+		case stateFreezerName:
 			if ReadStateScheme(db) != PathScheme {
 				continue
 			}
@@ -97,13 +101,13 @@ func inspectFreezers(db ethdb.Database) ([]freezerInfo, error) {
 			if err != nil {
 				return nil, err
 			}
-			f, err := NewStateFreezer(datadir, true)
+			f, err := NewStateFreezer(datadir, true, 0)
 			if err != nil {
 				return nil, err
 			}
 			defer f.Close()
 
-			info, err := inspect(StateFreezerName, stateFreezerNoSnappy, f)
+			info, err := inspect(stateFreezerName, stateFreezerNoSnappy, f)
 			if err != nil {
 				return nil, err
 			}
@@ -126,9 +130,9 @@ func InspectFreezerTable(ancient string, freezerName string, tableName string, s
 		tables map[string]bool
 	)
 	switch freezerName {
-	case ChainFreezerName:
+	case chainFreezerName:
 		path, tables = resolveChainFreezerDir(ancient), chainFreezerNoSnappy
-	case StateFreezerName:
+	case stateFreezerName:
 		path, tables = filepath.Join(ancient, freezerName), stateFreezerNoSnappy
 	default:
 		return fmt.Errorf("unknown freezer, supported ones: %v", freezers)
@@ -146,5 +150,25 @@ func InspectFreezerTable(ancient string, freezerName string, tableName string, s
 		return err
 	}
 	table.dumpIndexStdout(start, end)
+	return nil
+}
+
+func ResetStateFreezerTableOffset(ancient string, virtualTail uint64) error {
+	path, tables := filepath.Join(ancient, stateFreezerName), stateFreezerNoSnappy
+
+	for name, disableSnappy := range tables {
+		log.Info("Handle table", "name", name, "disableSnappy", disableSnappy)
+		table, err := newTable(path, name, metrics.NilMeter{}, metrics.NilMeter{}, metrics.NilGauge{}, freezerTableSize, disableSnappy, false)
+		if err != nil {
+			log.Error("New table failed", "error", err)
+			return err
+		}
+		// Reset the metadata of the freezer table
+		err = table.ResetItemsOffset(virtualTail)
+		if err != nil {
+			log.Error("Reset items offset of the table", "name", name, "error", err)
+			return err
+		}
+	}
 	return nil
 }

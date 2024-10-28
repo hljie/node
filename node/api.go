@@ -21,16 +21,17 @@ import (
 	"fmt"
 	"strings"
 
-	"node/internal/debug"
-	"node/p2p"
-	"node/p2p/enode"
-	"node/rpc"
+	"bsc-node/common/gopool"
+	"bsc-node/internal/debug"
+	"bsc-node/log"
+	"bsc-node/p2p"
+	"bsc-node/p2p/enode"
+	"bsc-node/rpc"
 
+	// "github.com/ethereum/go-ethereum/common/gopool"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-
-	// "github.com/ethereum/go-ethereum/internal/debug"
-	"github.com/ethereum/go-ethereum/log"
+	// "bsc-node/internal/debug"
 	// "github.com/ethereum/go-ethereum/p2p"
 	// "github.com/ethereum/go-ethereum/p2p/enode"
 	// "github.com/ethereum/go-ethereum/rpc"
@@ -138,7 +139,7 @@ func (api *adminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, error) 
 	}
 	rpcSub := notifier.CreateSubscription()
 
-	go func() {
+	gopool.Submit(func() {
 		events := make(chan *p2p.PeerEvent)
 		sub := server.SubscribeEvents(events)
 		defer sub.Unsubscribe()
@@ -155,7 +156,7 @@ func (api *adminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, error) 
 				return
 			}
 		}
-	}()
+	})
 
 	return rpcSub, nil
 }

@@ -19,8 +19,7 @@ package bloombits
 import (
 	"errors"
 
-	"node/core/types"
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/core/types"
 )
 
 var (

@@ -20,22 +20,30 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"node/accounts"
-	"node/accounts/external"
-	"node/accounts/keystore"
-	"node/accounts/scwallet"
-	"node/accounts/usbwallet"
-	"node/cmd/utils"
-	"node/eth/catalyst"
-	"node/eth/ethconfig"
-	"node/internal/ethapi"
-	"node/internal/flags"
-	"node/node"
 	"os"
 	"reflect"
-	"runtime"
-	"strings"
 	"unicode"
+
+	"github.com/naoina/toml"
+	"github.com/urfave/cli/v2"
+
+	"bsc-node/accounts"
+	"bsc-node/accounts/external"
+	"bsc-node/accounts/keystore"
+	"bsc-node/accounts/scwallet"
+	"bsc-node/accounts/usbwallet"
+	"bsc-node/cmd/utils"
+	"bsc-node/core/rawdb"
+	"bsc-node/eth/ethconfig"
+	"bsc-node/internal/ethapi"
+	"bsc-node/internal/version"
+	"bsc-node/log"
+	"bsc-node/node"
+	"bsc-node/params"
+
+	"bsc-node/internal/flags"
+
+	"bsc-node/metrics"
 
 	// "github.com/ethereum/go-ethereum/accounts"
 	// "github.com/ethereum/go-ethereum/accounts/external"
@@ -44,20 +52,11 @@ import (
 	// "github.com/ethereum/go-ethereum/accounts/usbwallet"
 	// "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
-	// "github.com/ethereum/go-ethereum/eth/catalyst"
+	// "github.com/ethereum/go-ethereum/core/rawdb"
 	// "github.com/ethereum/go-ethereum/eth/ethconfig"
-	// "github.com/ethereum/go-ethereum/internal/ethapi"
-	// "github.com/ethereum/go-ethereum/internal/flags"
 	// "github.com/ethereum/go-ethereum/internal/version"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-
 	// "github.com/ethereum/go-ethereum/node"
 	// "github.com/ethereum/go-ethereum/params"
-	"github.com/naoina/toml"
-	"github.com/urfave/cli/v2"
 )
 
 var (
@@ -126,10 +125,10 @@ func loadConfig(file string, cfg *gethConfig) error {
 }
 
 func defaultNodeConfig() node.Config {
-	// git, _ := version.VCS()
+	git, _ := version.VCS()
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
-	// cfg.Version = params.VersionWithCommit(git.Commit, git.Date)
+	cfg.Version = params.VersionWithCommit(git.Commit, git.Date)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
 	cfg.IPCPath = "geth.ipc"
@@ -151,6 +150,16 @@ func loadBaseConfig(ctx *cli.Context) gethConfig {
 		if err := loadConfig(file, &cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
+	}
+
+	scheme := cfg.Eth.StateScheme
+	if scheme != "" {
+		if !rawdb.ValidateStateScheme(scheme) {
+			utils.Fatalf("Invalid state scheme param in config: %s", scheme)
+		}
+	}
+	if cfg.Eth.Genesis != nil && cfg.Eth.Genesis.Config != nil {
+		log.Warn("Chain config in the configuration file is ignored!")
 	}
 
 	// Apply flags.
@@ -182,6 +191,19 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 // makeFullNode loads geth configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
+	if ctx.IsSet(utils.RialtoHash.Name) {
+		v := ctx.String(utils.RialtoHash.Name)
+		params.RialtoGenesisHash = common.HexToHash(v)
+	}
+
+	if ctx.IsSet(utils.OverrideShanghai.Name) {
+		v := ctx.Uint64(utils.OverrideShanghai.Name)
+		cfg.Eth.OverrideShanghai = &v
+	}
+	if ctx.IsSet(utils.OverrideKepler.Name) {
+		v := ctx.Uint64(utils.OverrideKepler.Name)
+		cfg.Eth.OverrideKepler = &v
+	}
 	if ctx.IsSet(utils.OverrideCancun.Name) {
 		v := ctx.Uint64(utils.OverrideCancun.Name)
 		cfg.Eth.OverrideCancun = &v
@@ -190,21 +212,15 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		v := ctx.Uint64(utils.OverrideVerkle.Name)
 		cfg.Eth.OverrideVerkle = &v
 	}
-	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
-
-	// Create gauge with geth system and build information
-	if eth != nil { // The 'eth' backend may be nil in light mode
-		var protos []string
-		for _, p := range eth.Protocols() {
-			protos = append(protos, fmt.Sprintf("%v/%d", p.Name, p.Version))
-		}
-		metrics.NewRegisteredGaugeInfo("geth/info", nil).Update(metrics.GaugeInfoValue{
-			"arch":      runtime.GOARCH,
-			"os":        runtime.GOOS,
-			"version":   cfg.Node.Version,
-			"protocols": strings.Join(protos, ","),
-		})
+	if ctx.IsSet(utils.OverrideFeynman.Name) {
+		v := ctx.Uint64(utils.OverrideFeynman.Name)
+		cfg.Eth.OverrideFeynman = &v
 	}
+	if ctx.IsSet(utils.OverrideFeynmanFix.Name) {
+		v := ctx.Uint64(utils.OverrideFeynmanFix.Name)
+		cfg.Eth.OverrideFeynmanFix = &v
+	}
+	backend, _ := utils.RegisterEthService(stack, &cfg.Eth)
 
 	// Configure log filter RPC API.
 	// filterSystem := utils.RegisterFilterAPI(stack, backend, &cfg.Eth)
@@ -213,33 +229,18 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	// if ctx.IsSet(utils.GraphQLEnabledFlag.Name) {
 	// 	utils.RegisterGraphQLService(stack, backend, filterSystem, &cfg.Node)
 	// }
+
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
 	}
-	// Configure full-sync tester service if requested
-	if ctx.IsSet(utils.SyncTargetFlag.Name) {
-		hex := hexutil.MustDecode(ctx.String(utils.SyncTargetFlag.Name))
-		if len(hex) != common.HashLength {
-			utils.Fatalf("invalid sync target length: have %d, want %d", len(hex), common.HashLength)
-		}
-		utils.RegisterFullSyncTester(stack, eth, common.BytesToHash(hex))
-	}
-	// Start the dev mode if requested, or launch the engine API for
-	// interacting with external consensus client.
-	if ctx.IsSet(utils.DeveloperFlag.Name) {
-		simBeacon, err := catalyst.NewSimulatedBeacon(ctx.Uint64(utils.DeveloperPeriodFlag.Name), eth)
-		if err != nil {
-			utils.Fatalf("failed to register dev mode catalyst service: %v", err)
-		}
-		catalyst.RegisterSimulatedBeaconAPIs(stack, simBeacon)
-		stack.RegisterLifecycle(simBeacon)
-	} else {
-		err := catalyst.Register(stack, eth)
-		if err != nil {
-			utils.Fatalf("failed to register catalyst service: %v", err)
-		}
-	}
+
+	git, _ := version.VCS()
+	utils.SetupMetrics(ctx,
+		utils.EnableBuildInfo(git.Commit, git.Date),
+		utils.EnableMinerInfo(ctx, cfg.Eth.Miner),
+		utils.EnableNodeInfo(cfg.Eth.TxPool),
+	)
 	return stack, backend
 }
 
@@ -375,7 +376,6 @@ func setAccountManagerBackends(conf *node.Config, am *accounts.Manager, keydir s
 		} else {
 			am.AddBackend(trezorhub)
 		}
-		return nil
 	}
 	if len(conf.SmartCardDaemonPath) > 0 {
 		// Start a smart card hub

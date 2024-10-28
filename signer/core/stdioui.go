@@ -18,10 +18,11 @@ package core
 
 import (
 	"context"
-	"node/internal/ethapi"
 
-	// "github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
+	"bsc-node/internal/ethapi"
+	"bsc-node/log"
+
+	// "bsc-node/internal/ethapi"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 

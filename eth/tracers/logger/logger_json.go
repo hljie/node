@@ -21,7 +21,7 @@ import (
 	"io"
 	"math/big"
 
-	"node/core/vm"
+	"bsc-node/core/vm"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -101,3 +101,5 @@ func (l *JSONLogger) CaptureExit(output []byte, gasUsed uint64, err error) {}
 func (l *JSONLogger) CaptureTxStart(gasLimit uint64) {}
 
 func (l *JSONLogger) CaptureTxEnd(restGas uint64) {}
+
+func (l *JSONLogger) CaptureSystemTxEnd(intrinsicGas uint64) {}

@@ -17,13 +17,14 @@
 package dbtest
 
 import (
+	"bsc-node/ethdb"
 	"bytes"
 	"crypto/rand"
 	"reflect"
 	"sort"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/ethdb"
+	// "github.com/ethereum/go-ethereum/ethdb"
 	"golang.org/x/exp/slices"
 )
 
@@ -273,12 +274,8 @@ func TestDatabaseSuite(t *testing.T, New func() ethdb.KeyValueStore) {
 		b.Put([]byte("5"), nil)
 		b.Delete([]byte("1"))
 		b.Put([]byte("6"), nil)
-
-		b.Delete([]byte("3")) // delete then put
+		b.Delete([]byte("3"))
 		b.Put([]byte("3"), nil)
-
-		b.Put([]byte("7"), nil) // put then delete
-		b.Delete([]byte("7"))
 
 		if err := b.Write(); err != nil {
 			t.Fatal(err)

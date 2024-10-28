@@ -19,18 +19,21 @@ package p2p
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
 
-	"node/p2p/rlpx"
+	"bsc-node/common/gopool"
+	"bsc-node/p2p/rlpx"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/bitutil"
-	"github.com/ethereum/go-ethereum/metrics"
+
+	// "github.com/ethereum/go-ethereum/common/gopool"
+	"bsc-node/metrics"
+
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -137,9 +140,9 @@ func (t *rlpxTransport) doProtoHandshake(our *protoHandshake) (their *protoHands
 	// Writing our handshake happens concurrently, we prefer
 	// returning the handshake read error. If the remote side
 	// disconnects us early with a valid reason, we should return it
-	// as the error so it can be tracked elsewhere.
+	// as the error, so it can be tracked elsewhere.
 	werr := make(chan error, 1)
-	go func() { werr <- Send(t, handshakeMsg, our) }()
+	gopool.Submit(func() { werr <- Send(t, handshakeMsg, our) })
 	if their, err = readProtocolHandshake(t); err != nil {
 		<-werr // make sure the write terminates too
 		return nil, err
@@ -159,7 +162,7 @@ func readProtocolHandshake(rw MsgReader) (*protoHandshake, error) {
 		return nil, err
 	}
 	if msg.Size > baseProtocolMaxMsgSize {
-		return nil, errors.New("message too big")
+		return nil, fmt.Errorf("message too big")
 	}
 	if msg.Code == discMsg {
 		// Disconnect before protocol handshake is valid according to the

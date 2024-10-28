@@ -21,10 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"node/p2p/discover/v5wire"
-	"node/p2p/enode"
+	"bsc-node/p2p/discover/v5wire"
+	"bsc-node/p2p/enode"
 
-	"github.com/ethereum/go-ethereum/log"
+	"bsc-node/log"
 )
 
 // This is a limit for the number of concurrent talk requests.

@@ -19,9 +19,8 @@ package snap
 import (
 	"errors"
 	"fmt"
-	"node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"

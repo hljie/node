@@ -19,10 +19,10 @@ package node
 import (
 	"net"
 	"net/http"
-	"node/rpc"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
+	"bsc-node/log"
+	"bsc-node/rpc"
 	// "github.com/ethereum/go-ethereum/rpc"
 )
 

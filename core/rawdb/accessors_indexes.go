@@ -20,15 +20,14 @@ import (
 	"bytes"
 	"math/big"
 
-	"node/core/types"
-	"node/ethdb"
-	"node/params"
+	"bsc-node/core/types"
+	"bsc-node/params"
+
+	"bsc-node/ethdb"
+
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/core/types"
-	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
-
 	// "github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )

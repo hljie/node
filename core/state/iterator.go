@@ -20,10 +20,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"node/core/types"
-	"node/trie"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/core/types"
+	"bsc-node/trie"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -115,7 +114,7 @@ func (it *nodeIterator) step() error {
 	}
 	// Otherwise we've reached an account node, initiate data iteration
 	var account types.StateAccount
-	if err := rlp.DecodeBytes(it.stateIt.LeafBlob(), &account); err != nil {
+	if err := rlp.Decode(bytes.NewReader(it.stateIt.LeafBlob()), &account); err != nil {
 		return err
 	}
 	// Lookup the preimage of account hash
@@ -126,7 +125,7 @@ func (it *nodeIterator) step() error {
 	address := common.BytesToAddress(preimage)
 
 	// Traverse the storage slots belong to the account
-	dataTrie, err := it.state.db.OpenStorageTrie(it.state.originalRoot, address, account.Root, it.state.trie)
+	dataTrie, err := it.state.db.OpenStorageTrie(it.state.originalRoot, address, account.Root)
 	if err != nil {
 		return err
 	}

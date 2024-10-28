@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net"
 
-	"node/p2p/enode"
-	"node/p2p/enr"
+	"bsc-node/p2p/enode"
+	"bsc-node/p2p/enr"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/mclock"

@@ -16,9 +16,9 @@
 
 package vm
 
-import (
-	"github.com/ethereum/go-ethereum/params"
-)
+import "bsc-node/params"
+
+// "github.com/ethereum/go-ethereum/params"
 
 func minSwapStack(n int) int {
 	return minStack(n, n)

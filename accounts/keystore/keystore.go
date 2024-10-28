@@ -21,12 +21,12 @@
 package keystore
 
 import (
+	"bsc-node/accounts"
+	"bsc-node/core/types"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
 	"math/big"
-	"node/accounts"
-	"node/core/types"
 	"os"
 	"path/filepath"
 	"reflect"

@@ -18,11 +18,12 @@ package eth
 
 import (
 	"math/big"
-	"node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/common/gopool"
+	"bsc-node/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
+	// "github.com/ethereum/go-ethereum/common/gopool"
 )
 
 const (
@@ -83,8 +84,8 @@ func (p *Peer) broadcastTransactions() {
 			)
 			for i := 0; i < len(queue) && size < maxTxPacketSize; i++ {
 				if tx := p.txpool.Get(queue[i]); tx != nil {
-					txs = append(txs, tx)
-					size += common.StorageSize(tx.Size())
+					txs = append(txs, tx.Tx)
+					size += common.StorageSize(tx.Tx.Size())
 				}
 				hashesCount++
 			}
@@ -123,6 +124,9 @@ func (p *Peer) broadcastTransactions() {
 		case <-fail:
 			failed = true
 
+		case <-p.txTerm:
+			return
+
 		case <-p.term:
 			return
 		}
@@ -153,8 +157,8 @@ func (p *Peer) announceTransactions() {
 			for count = 0; count < len(queue) && size < maxTxPacketSize; count++ {
 				if tx := p.txpool.Get(queue[count]); tx != nil {
 					pending = append(pending, queue[count])
-					pendingTypes = append(pendingTypes, tx.Type())
-					pendingSizes = append(pendingSizes, uint32(tx.Size()))
+					pendingTypes = append(pendingTypes, tx.Tx.Type())
+					pendingSizes = append(pendingSizes, uint32(tx.Tx.Size()))
 					size += common.HashLength
 				}
 			}
@@ -164,14 +168,21 @@ func (p *Peer) announceTransactions() {
 			// If there's anything available to transfer, fire up an async writer
 			if len(pending) > 0 {
 				done = make(chan struct{})
-				go func() {
-					if err := p.sendPooledTransactionHashes(pending, pendingTypes, pendingSizes); err != nil {
-						fail <- err
-						return
+				gopool.Submit(func() {
+					if p.version >= ETH68 {
+						if err := p.sendPooledTransactionHashes68(pending, pendingTypes, pendingSizes); err != nil {
+							fail <- err
+							return
+						}
+					} else {
+						if err := p.sendPooledTransactionHashes66(pending); err != nil {
+							fail <- err
+							return
+						}
 					}
 					close(done)
-					p.Log().Trace("Sent transaction announcements", "count", len(pending))
-				}()
+					//p.Log().Trace("Sent transaction announcements", "count", len(pending))
+				})
 			}
 		}
 		// Transfer goroutine may or may not have been started, listen for events
@@ -193,6 +204,9 @@ func (p *Peer) announceTransactions() {
 
 		case <-fail:
 			failed = true
+
+		case <-p.txTerm:
+			return
 
 		case <-p.term:
 			return

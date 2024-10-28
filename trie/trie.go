@@ -22,15 +22,13 @@ import (
 	"errors"
 	"fmt"
 
-	"node/core/types"
-	"node/trie/trienode"
-	"node/triedb/database"
+	"bsc-node/core/types"
+	"bsc-node/log"
+	"bsc-node/trie/trienode"
 
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	// "github.com/ethereum/go-ethereum/trie/trienode"
-	// "github.com/ethereum/go-ethereum/triedb/database"
 )
 
 // Trie is a Merkle Patricia Trie. Use New to create a trie that sits on
@@ -84,7 +82,7 @@ func (t *Trie) Copy() *Trie {
 // zero hash or the sha3 hash of an empty string, then trie is initially
 // empty, otherwise, the root node must be present in database or returns
 // a MissingNodeError if not.
-func New(id *ID, db database.Database) (*Trie, error) {
+func New(id *ID, db *Database) (*Trie, error) {
 	reader, err := newTrieReader(id.StateRoot, id.Owner, db)
 	if err != nil {
 		return nil, err
@@ -105,7 +103,7 @@ func New(id *ID, db database.Database) (*Trie, error) {
 }
 
 // NewEmpty is a shortcut to create empty tree. It's mostly used in tests.
-func NewEmpty(db database.Database) *Trie {
+func NewEmpty(db *Database) *Trie {
 	tr, _ := New(TrieID(types.EmptyRootHash), db)
 	return tr
 }
@@ -674,4 +672,13 @@ func (t *Trie) Reset() {
 	t.unhashed = 0
 	t.tracer.reset()
 	t.committed = false
+}
+
+func (t *Trie) Size() int {
+	return estimateSize(t.root)
+}
+
+// Owner returns the associated trie owner.
+func (t *Trie) Owner() common.Hash {
+	return t.owner
 }

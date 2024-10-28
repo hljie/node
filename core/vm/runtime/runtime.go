@@ -20,14 +20,15 @@ import (
 	"math"
 	"math/big"
 
+	"bsc-node/core/rawdb"
+	"bsc-node/core/state"
+	"bsc-node/core/types"
+	"bsc-node/core/vm"
+	"bsc-node/params"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
+	// "github.com/ethereum/go-ethereum/params"
 )
 
 // Config is a basic type specifying certain configuration flags for running
@@ -45,10 +46,7 @@ type Config struct {
 	Debug       bool
 	EVMConfig   vm.Config
 	BaseFee     *big.Int
-	BlobBaseFee *big.Int
 	BlobHashes  []common.Hash
-	BlobFeeCap  *big.Int
-	Random      *common.Hash
 
 	State     *state.StateDB
 	GetHashFn func(n uint64) common.Hash
@@ -98,9 +96,6 @@ func setDefaults(cfg *Config) {
 	if cfg.BaseFee == nil {
 		cfg.BaseFee = big.NewInt(params.InitialBaseFee)
 	}
-	if cfg.BlobBaseFee == nil {
-		cfg.BlobBaseFee = big.NewInt(params.BlobTxMinBlobGasprice)
-	}
 }
 
 // Execute executes the code using the input as call data during the execution.
@@ -136,7 +131,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 		common.BytesToAddress([]byte("contract")),
 		input,
 		cfg.GasLimit,
-		uint256.MustFromBig(cfg.Value),
+		cfg.Value,
 	)
 	return ret, cfg.State, err
 }
@@ -165,7 +160,7 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 		sender,
 		input,
 		cfg.GasLimit,
-		uint256.MustFromBig(cfg.Value),
+		cfg.Value,
 	)
 	return code, address, leftOverGas, err
 }
@@ -180,7 +175,7 @@ func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, er
 
 	var (
 		vmenv   = NewEnv(cfg)
-		sender  = vm.AccountRef(cfg.Origin)
+		sender  = cfg.State.GetOrNewStateObject(cfg.Origin)
 		statedb = cfg.State
 		rules   = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
@@ -195,7 +190,7 @@ func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, er
 		address,
 		input,
 		cfg.GasLimit,
-		uint256.MustFromBig(cfg.Value),
+		cfg.Value,
 	)
 	return ret, leftOverGas, err
 }

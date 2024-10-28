@@ -17,11 +17,12 @@
 package node
 
 import (
+	"bsc-node/rpc"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/ethereum/go-ethereum/rpc"
+	// "github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang-jwt/jwt/v4"
 )
 

@@ -17,13 +17,13 @@
 package core
 
 import (
+	"bsc-node/accounts"
+	"bsc-node/accounts/keystore"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"node/accounts"
-	"node/accounts/keystore"
 	"os"
 
 	// "github.com/ethereum/go-ethereum/accounts"
@@ -33,7 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// UIServerAPI implements methods Clef provides for a UI to query, in the bidirectional communication
+// SignerUIAPI implements methods Clef provides for a UI to query, in the bidirectional communication
 // channel.
 // This API is considered secure, since a request can only
 // ever arrive from the UI -- and the UI is capable of approving any action, thus we can consider these

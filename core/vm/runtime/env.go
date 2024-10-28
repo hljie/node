@@ -17,8 +17,8 @@
 package runtime
 
 import (
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"bsc-node/core"
+	"bsc-node/core/vm"
 )
 
 func NewEnv(cfg *Config) *vm.EVM {
@@ -26,7 +26,6 @@ func NewEnv(cfg *Config) *vm.EVM {
 		Origin:     cfg.Origin,
 		GasPrice:   cfg.GasPrice,
 		BlobHashes: cfg.BlobHashes,
-		BlobFeeCap: cfg.BlobFeeCap,
 	}
 	blockContext := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
@@ -38,8 +37,6 @@ func NewEnv(cfg *Config) *vm.EVM {
 		Difficulty:  cfg.Difficulty,
 		GasLimit:    cfg.GasLimit,
 		BaseFee:     cfg.BaseFee,
-		BlobBaseFee: cfg.BlobBaseFee,
-		Random:      cfg.Random,
 	}
 
 	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.ChainConfig, cfg.EVMConfig)

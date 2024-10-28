@@ -22,19 +22,19 @@ package downloader
 import (
 	"errors"
 	"fmt"
-	"node/core/types"
-	"node/params"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/core/types"
+	"bsc-node/params"
+
+	"bsc-node/log"
+
+	"bsc-node/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	// "github.com/ethereum/go-ethereum/params"
 )
 
@@ -67,6 +67,7 @@ type fetchRequest struct {
 // all outstanding pieces complete and the result as a whole can be processed.
 type fetchResult struct {
 	pending atomic.Int32 // Flag telling what deliveries are outstanding
+	pid     string
 
 	Header       *types.Header
 	Uncles       []*types.Header
@@ -75,9 +76,10 @@ type fetchResult struct {
 	Withdrawals  types.Withdrawals
 }
 
-func newFetchResult(header *types.Header, fastSync bool) *fetchResult {
+func newFetchResult(header *types.Header, fastSync bool, pid string) *fetchResult {
 	item := &fetchResult{
 		Header: header,
+		pid:    pid,
 	}
 	if !header.EmptyBody() {
 		item.pending.Store(item.pending.Load() | (1 << bodyType))
@@ -516,7 +518,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		// we can ask the resultcache if this header is within the
 		// "prioritized" segment of blocks. If it is not, we need to throttle
 
-		stale, throttle, item, err := q.resultCache.AddFetch(header, q.mode == SnapSync)
+		stale, throttle, item, err := q.resultCache.AddFetch(header, q.mode == SnapSync, p.id)
 		if stale {
 			// Don't put back in the task queue, this item has already been
 			// delivered upstream
@@ -647,7 +649,7 @@ func (q *queue) expire(peer string, pendPool map[string]*fetchRequest, taskQueue
 	// as there's no order of events that should lead to such expirations.
 	req := pendPool[peer]
 	if req == nil {
-		log.Error("Expired request does not exist", "peer", peer)
+		log.Trace("Expired request does not exist", "peer", peer)
 		return 0
 	}
 	delete(pendPool, peer)
@@ -802,7 +804,7 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 			}
 		}
 		// Blocks must have a number of blobs corresponding to the header gas usage,
-		// and zero before the Cancun hardfork.
+		// and zero before the Cancun hardfork
 		var blobs int
 		for _, tx := range txLists[index] {
 			// Count the number of blobs to validate against the header's blobGasUsed
@@ -814,12 +816,9 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 					return errInvalidBody
 				}
 				for _, hash := range tx.BlobHashes() {
-					if !kzg4844.IsValidVersionedHash(hash[:]) {
+					if hash[0] != params.BlobTxHashVersion {
 						return errInvalidBody
 					}
-				}
-				if tx.BlobTxSidecar() != nil {
-					return errInvalidBody
 				}
 			}
 		}

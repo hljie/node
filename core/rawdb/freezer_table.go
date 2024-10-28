@@ -27,9 +27,11 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"bsc-node/log"
+
+	"bsc-node/metrics"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/golang/snappy"
 )
 
@@ -145,12 +147,20 @@ func newTable(path string, name string, readMeter metrics.Meter, writeMeter metr
 		meta  *os.File
 	)
 	if readonly {
-		// Will fail if table index file or meta file is not existent
+		// Will fail if table doesn't exist
 		index, err = openFreezerFileForReadOnly(filepath.Join(path, idxName))
 		if err != nil {
 			return nil, err
 		}
-		meta, err = openFreezerFileForReadOnly(filepath.Join(path, fmt.Sprintf("%s.meta", name)))
+		// TODO(rjl493456442) change it to read-only mode. Open the metadata file
+		// in rw mode. It's a temporary solution for now and should be changed
+		// whenever the tail deletion is actually used. The reason for this hack is
+		// the additional meta file for each freezer table is added in order to support
+		// tail deletion, but for most legacy nodes this file is missing. This check
+		// will suddenly break lots of database relevant commands. So the metadata file
+		// is always opened for mutation and nothing else will be written except
+		// the initialization.
+		meta, err = openFreezerFileForAppend(filepath.Join(path, fmt.Sprintf("%s.meta", name)))
 		if err != nil {
 			return nil, err
 		}
@@ -467,20 +477,6 @@ func (t *freezerTable) truncateHead(items uint64) error {
 	return nil
 }
 
-// sizeHidden returns the total data size of hidden items in the freezer table.
-// This function assumes the lock is already held.
-func (t *freezerTable) sizeHidden() (uint64, error) {
-	hidden, offset := t.itemHidden.Load(), t.itemOffset.Load()
-	if hidden <= offset {
-		return 0, nil
-	}
-	indices, err := t.getIndices(hidden-1, 1)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(indices[1].offset), nil
-}
-
 // truncateTail discards any recent data before the provided threshold number.
 func (t *freezerTable) truncateTail(items uint64) error {
 	t.lock.Lock()
@@ -509,12 +505,6 @@ func (t *freezerTable) truncateTail(items uint64) error {
 		newTail.unmarshalBinary(buffer)
 		newTailId = newTail.filenum
 	}
-	// Save the old size for metrics tracking. This needs to be done
-	// before any updates to either itemHidden or itemOffset.
-	oldSize, err := t.sizeNolock()
-	if err != nil {
-		return err
-	}
 	// Update the virtual tail marker and hidden these entries in table.
 	t.itemHidden.Store(items)
 	if err := writeMetadata(t.meta, newMetadata(items)); err != nil {
@@ -529,12 +519,18 @@ func (t *freezerTable) truncateTail(items uint64) error {
 	if t.tailId > newTailId {
 		return fmt.Errorf("invalid index, tail-file %d, item-file %d", t.tailId, newTailId)
 	}
+	// Hidden items exceed the current tail file, drop the relevant
+	// data files. We need to truncate, save the old size for metrics
+	// tracking.
+	oldSize, err := t.sizeNolock()
+	if err != nil {
+		return err
+	}
 	// Count how many items can be deleted from the file.
 	var (
 		newDeleted = items
 		deleted    = t.itemOffset.Load()
 	)
-	// Hidden items exceed the current tail file, drop the relevant data files.
 	for current := items - 1; current >= deleted; current -= 1 {
 		if _, err := t.index.ReadAt(buffer, int64((current-deleted+1)*indexEntrySize)); err != nil {
 			return err
@@ -694,7 +690,6 @@ func (t *freezerTable) releaseFilesBefore(num uint32, remove bool) {
 func (t *freezerTable) getIndices(from, count uint64) ([]*indexEntry, error) {
 	// Apply the table-offset
 	from = from - t.itemOffset.Load()
-
 	// For reading N items, we need N+1 indices.
 	buffer := make([]byte, (count+1)*indexEntrySize)
 	if _, err := t.index.ReadAt(buffer, int64(from*indexEntrySize)); err != nil {
@@ -885,18 +880,14 @@ func (t *freezerTable) size() (uint64, error) {
 	return t.sizeNolock()
 }
 
-// sizeNolock returns the total data size in the freezer table. This function
-// assumes the lock is already held.
+// sizeNolock returns the total data size in the freezer table without obtaining
+// the mutex first.
 func (t *freezerTable) sizeNolock() (uint64, error) {
 	stat, err := t.index.Stat()
 	if err != nil {
 		return 0, err
 	}
-	hidden, err := t.sizeHidden()
-	if err != nil {
-		return 0, err
-	}
-	total := uint64(t.maxFileSize)*uint64(t.headId-t.tailId) + uint64(t.headBytes) + uint64(stat.Size()) - hidden
+	total := uint64(t.maxFileSize)*uint64(t.headId-t.tailId) + uint64(t.headBytes) + uint64(stat.Size())
 	return total, nil
 }
 
@@ -987,4 +978,34 @@ func (t *freezerTable) dumpIndex(w io.Writer, start, stop int64) {
 		}
 	}
 	fmt.Fprintf(w, "|--------------------------|\n")
+}
+
+func (t *freezerTable) ResetItemsOffset(virtualTail uint64) error {
+	stat, err := t.index.Stat()
+	if err != nil {
+		return err
+	}
+
+	if stat.Size() == 0 {
+		return fmt.Errorf("Stat size is zero when ResetVirtualTail.")
+	}
+
+	var firstIndex indexEntry
+
+	buffer := make([]byte, indexEntrySize)
+
+	t.index.ReadAt(buffer, 0)
+	firstIndex.unmarshalBinary(buffer)
+
+	firstIndex.offset = uint32(virtualTail)
+	t.index.WriteAt(firstIndex.append(nil), 0)
+
+	var firstIndex2 indexEntry
+	buffer2 := make([]byte, indexEntrySize)
+	t.index.ReadAt(buffer2, 0)
+	firstIndex2.unmarshalBinary(buffer2)
+
+	log.Info("Reset Index", "filenum", t.index.Name(), "offset", firstIndex2.offset)
+
+	return nil
 }

@@ -18,13 +18,15 @@ package consensus
 
 import (
 	"fmt"
-	"node/core/rawdb"
-	"node/ethdb"
 	"sync"
+
+	"bsc-node/core/rawdb"
+	"bsc-node/ethdb"
+	"bsc-node/log"
 
 	// "github.com/ethereum/go-ethereum/core/rawdb"
 	// "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
+	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 

@@ -24,18 +24,20 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"node/consensus"
-	"node/core"
-	"node/core/types"
-	"node/miner"
-	"node/node"
-	"node/p2p"
-	"node/rpc"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"bsc-node/consensus"
+	"bsc-node/core"
+	"bsc-node/core/types"
+	"bsc-node/log"
+	"bsc-node/miner"
+	"bsc-node/node"
+	"bsc-node/p2p"
+	"bsc-node/rpc"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -46,7 +48,6 @@ import (
 	// "github.com/ethereum/go-ethereum/core/types"
 	ethproto "github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 
 	// "github.com/ethereum/go-ethereum/miner"
 	// "github.com/ethereum/go-ethereum/node"
@@ -84,16 +85,10 @@ type backend interface {
 // reporting to ethstats
 type fullNodeBackend interface {
 	backend
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
-	CurrentBlock() *types.Header
-	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
-}
-
-// miningNodeBackend encompasses the functionality necessary for a mining node
-// reporting to ethstats
-type miningNodeBackend interface {
-	fullNodeBackend
 	Miner() *miner.Miner
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
+	CurrentBlock() *types.Block
+	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
 // Service implements an Ethereum netstats reporting daemon that pushes local
@@ -620,10 +615,6 @@ func (s *Service) reportBlock(conn *connWrapper, block *types.Block) error {
 	// Gather the block details from the header or block chain
 	details := s.assembleBlockStats(block)
 
-	// Short circuit if the block detail is not available.
-	if details == nil {
-		return nil
-	}
 	// Assemble the block report and send it to the server
 	log.Trace("Sending new block to ethstats", "number", details.Number, "hash", details.Hash)
 
@@ -651,15 +642,8 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 	// check if backend is a full node
 	fullBackend, ok := s.backend.(fullNodeBackend)
 	if ok {
-		// Retrieve current chain head if no block is given.
 		if block == nil {
-			head := fullBackend.CurrentBlock()
-			block, _ = fullBackend.BlockByNumber(context.Background(), rpc.BlockNumber(head.Number.Uint64()))
-		}
-		// Short circuit if no block is available. It might happen when
-		// the blockchain is reorging.
-		if block == nil {
-			return nil
+			block = fullBackend.CurrentBlock()
 		}
 		header = block.Header()
 		td = fullBackend.GetTd(context.Background(), header.Hash())
@@ -804,14 +788,13 @@ func (s *Service) reportStats(conn *connWrapper) error {
 		gasprice int
 	)
 	// check if backend is a full node
-	if fullBackend, ok := s.backend.(fullNodeBackend); ok {
-		if miningBackend, ok := s.backend.(miningNodeBackend); ok {
-			mining = miningBackend.Miner().Mining()
-			hashrate = int(miningBackend.Miner().Hashrate())
-		}
+	fullBackend, ok := s.backend.(fullNodeBackend)
+	if ok {
+		mining = fullBackend.Miner().Mining()
+		hashrate = int(fullBackend.Miner().Hashrate())
 
 		sync := fullBackend.SyncProgress()
-		syncing = !sync.Done()
+		syncing = fullBackend.CurrentHeader().Number.Uint64() >= sync.HighestBlock
 
 		price, _ := fullBackend.SuggestGasTipCap(context.Background())
 		gasprice = int(price.Uint64())
@@ -820,7 +803,7 @@ func (s *Service) reportStats(conn *connWrapper) error {
 		}
 	} else {
 		sync := s.backend.SyncProgress()
-		syncing = !sync.Done()
+		syncing = s.backend.CurrentHeader().Number.Uint64() >= sync.HighestBlock
 	}
 	// Assemble the node stats and send it to the server
 	log.Trace("Sending node details to ethstats")

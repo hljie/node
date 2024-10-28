@@ -22,7 +22,7 @@ import (
 	"encoding/binary"
 	"time"
 
-	"node/p2p/enode"
+	"bsc-node/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/common/mclock"

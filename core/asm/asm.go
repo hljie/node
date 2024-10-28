@@ -21,7 +21,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"node/core/vm"
+	"bsc-node/core/vm"
 )
 
 // Iterator for disassembled EVM instructions
@@ -34,7 +34,7 @@ type instructionIterator struct {
 	started bool
 }
 
-// NewInstructionIterator creates a new instruction iterator.
+// NewInstructionIterator create a new instruction iterator.
 func NewInstructionIterator(code []byte) *instructionIterator {
 	it := new(instructionIterator)
 	it.code = code

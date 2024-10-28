@@ -25,15 +25,15 @@ import (
 	"sync"
 	"time"
 
-	"node/accounts"
-	"node/core/types"
+	"bsc-node/accounts"
+	"bsc-node/core/types"
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum"
 	// "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/karalabe/usb"
 )
 
@@ -485,10 +485,6 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 	// Pinning needs to modify the state
 	w.stateLock.Lock()
 	defer w.stateLock.Unlock()
-
-	if w.device == nil {
-		return accounts.Account{}, accounts.ErrWalletClosed
-	}
 
 	if _, ok := w.paths[address]; !ok {
 		w.accounts = append(w.accounts, account)

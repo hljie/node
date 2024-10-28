@@ -22,21 +22,18 @@ import (
 	"fmt"
 	"time"
 
-	"node/core/rawdb"
-	"node/core/state"
-	"node/core/types"
-	"node/internal/ethapi"
-	"node/rpc"
-	"node/trie"
+	"bsc-node/core/rawdb"
+	"bsc-node/core/state"
+	"bsc-node/core/types"
+	"bsc-node/rpc"
+	"bsc-node/trie"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/log"
+
+	"bsc-node/internal/ethapi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-
-	// "github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	// "github.com/ethereum/go-ethereum/rpc"
 	// "github.com/ethereum/go-ethereum/trie"
@@ -67,6 +64,7 @@ func (api *DebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
 		if stateDb == nil {
 			return state.Dump{}, errors.New("pending state is not available")
 		}
+		opts.StateScheme = stateDb.Database().TrieDB().Scheme()
 		return stateDb.RawDump(opts), nil
 	}
 	var header *types.Header
@@ -91,6 +89,7 @@ func (api *DebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
 	if err != nil {
 		return state.Dump{}, err
 	}
+	opts.StateScheme = stateDb.Database().TrieDB().Scheme()
 	return stateDb.RawDump(opts), nil
 }
 
@@ -140,7 +139,7 @@ func (api *DebugAPI) GetBadBlocks(ctx context.Context) ([]*BadBlockArgs, error) 
 const AccountRangeMaxResults = 256
 
 // AccountRange enumerates all accounts in the given block and start point in paging request
-func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hexutil.Bytes, maxResults int, nocode, nostorage, incompletes bool) (state.Dump, error) {
+func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hexutil.Bytes, maxResults int, nocode, nostorage, incompletes bool) (state.IteratorDump, error) {
 	var stateDb *state.StateDB
 	var err error
 
@@ -151,7 +150,7 @@ func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hex
 			// the miner and operate on those
 			_, stateDb = api.eth.miner.Pending()
 			if stateDb == nil {
-				return state.Dump{}, errors.New("pending state is not available")
+				return state.IteratorDump{}, errors.New("pending state is not available")
 			}
 		} else {
 			var header *types.Header
@@ -165,29 +164,29 @@ func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hex
 			default:
 				block := api.eth.blockchain.GetBlockByNumber(uint64(number))
 				if block == nil {
-					return state.Dump{}, fmt.Errorf("block #%d not found", number)
+					return state.IteratorDump{}, fmt.Errorf("block #%d not found", number)
 				}
 				header = block.Header()
 			}
 			if header == nil {
-				return state.Dump{}, fmt.Errorf("block #%d not found", number)
+				return state.IteratorDump{}, fmt.Errorf("block #%d not found", number)
 			}
 			stateDb, err = api.eth.BlockChain().StateAt(header.Root)
 			if err != nil {
-				return state.Dump{}, err
+				return state.IteratorDump{}, err
 			}
 		}
 	} else if hash, ok := blockNrOrHash.Hash(); ok {
 		block := api.eth.blockchain.GetBlockByHash(hash)
 		if block == nil {
-			return state.Dump{}, fmt.Errorf("block %s not found", hash.Hex())
+			return state.IteratorDump{}, fmt.Errorf("block %s not found", hash.Hex())
 		}
 		stateDb, err = api.eth.BlockChain().StateAt(block.Root())
 		if err != nil {
-			return state.Dump{}, err
+			return state.IteratorDump{}, err
 		}
 	} else {
-		return state.Dump{}, errors.New("either block number or block hash must be specified")
+		return state.IteratorDump{}, errors.New("either block number or block hash must be specified")
 	}
 
 	opts := &state.DumpConfig{
@@ -196,11 +195,12 @@ func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hex
 		OnlyWithAddresses: !incompletes,
 		Start:             start,
 		Max:               uint64(maxResults),
+		StateScheme:       stateDb.Database().TrieDB().Scheme(),
 	}
 	if maxResults > AccountRangeMaxResults || maxResults <= 0 {
 		opts.Max = AccountRangeMaxResults
 	}
-	return stateDb.RawDump(opts), nil
+	return stateDb.IteratorDump(opts), nil
 }
 
 // StorageRangeResult is the result of a debug_storageRangeAt API call.
@@ -224,6 +224,7 @@ func (api *DebugAPI) StorageRangeAt(ctx context.Context, blockNrOrHash rpc.Block
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
+
 	if block == nil {
 		return StorageRangeResult{}, fmt.Errorf("block %v not found", blockNrOrHash)
 	}
@@ -233,20 +234,18 @@ func (api *DebugAPI) StorageRangeAt(ctx context.Context, blockNrOrHash rpc.Block
 	}
 	defer release()
 
-	return storageRangeAt(statedb, block.Root(), contractAddress, keyStart, maxResult)
-}
-
-func storageRangeAt(statedb *state.StateDB, root common.Hash, address common.Address, start []byte, maxResult int) (StorageRangeResult, error) {
-	storageRoot := statedb.GetStorageRoot(address)
-	if storageRoot == types.EmptyRootHash || storageRoot == (common.Hash{}) {
-		return StorageRangeResult{}, nil // empty storage
-	}
-	id := trie.StorageTrieID(root, crypto.Keccak256Hash(address.Bytes()), storageRoot)
-	tr, err := trie.NewStateTrie(id, statedb.Database().TrieDB())
+	st, err := statedb.StorageTrie(contractAddress)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
-	trieIt, err := tr.NodeIterator(start)
+	if st == nil {
+		return StorageRangeResult{}, fmt.Errorf("account %x doesn't exist", contractAddress)
+	}
+	return storageRangeAt(st, keyStart, maxResult)
+}
+
+func storageRangeAt(st state.Trie, start []byte, maxResult int) (StorageRangeResult, error) {
+	trieIt, err := st.NodeIterator(start)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
@@ -258,7 +257,7 @@ func storageRangeAt(statedb *state.StateDB, root common.Hash, address common.Add
 			return StorageRangeResult{}, err
 		}
 		e := storageEntry{Value: common.BytesToHash(content)}
-		if preimage := tr.GetKey(it.Key); preimage != nil {
+		if preimage := st.GetKey(it.Key); preimage != nil {
 			preimage := common.BytesToHash(preimage)
 			e.Key = &preimage
 		}
@@ -369,9 +368,6 @@ func (api *DebugAPI) getModifiedAccounts(startBlock, endBlock *types.Block) ([]c
 // The (from, to) parameters are the sequence of blocks to search, which can go
 // either forwards or backwards
 func (api *DebugAPI) GetAccessibleState(from, to rpc.BlockNumber) (uint64, error) {
-	if api.eth.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
-		return 0, errors.New("state history is not yet available in path-based scheme")
-	}
 	db := api.eth.ChainDb()
 	var pivot uint64
 	if p := rawdb.ReadLastPivotNumber(db); p != nil {
@@ -432,9 +428,6 @@ func (api *DebugAPI) GetAccessibleState(from, to rpc.BlockNumber) (uint64, error
 // If the value is shorter than the block generation time, or even 0 or negative,
 // the node will flush trie after processing each block (effectively archive mode).
 func (api *DebugAPI) SetTrieFlushInterval(interval string) error {
-	if api.eth.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
-		return errors.New("trie flush interval is undefined for path-based scheme")
-	}
 	t, err := time.ParseDuration(interval)
 	if err != nil {
 		return err
@@ -444,9 +437,6 @@ func (api *DebugAPI) SetTrieFlushInterval(interval string) error {
 }
 
 // GetTrieFlushInterval gets the current value of in-memory trie flush interval
-func (api *DebugAPI) GetTrieFlushInterval() (string, error) {
-	if api.eth.blockchain.TrieDB().Scheme() == rawdb.PathScheme {
-		return "", errors.New("trie flush interval is undefined for path-based scheme")
-	}
-	return api.eth.blockchain.GetTrieFlushInterval().String(), nil
+func (api *DebugAPI) GetTrieFlushInterval() string {
+	return api.eth.blockchain.GetTrieFlushInterval().String()
 }

@@ -18,16 +18,17 @@ package main
 
 import (
 	"fmt"
-	"node/accounts"
-	"node/accounts/keystore"
-	"node/cmd/utils"
 	"os"
+
+	"bsc-node/accounts"
+	"bsc-node/accounts/keystore"
+	"bsc-node/cmd/utils"
+	"bsc-node/log"
 
 	// "github.com/ethereum/go-ethereum/accounts"
 	// "github.com/ethereum/go-ethereum/accounts/keystore"
 	// "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 )
 

@@ -22,12 +22,11 @@ import (
 	"io/fs"
 	"os"
 
-	"node/core/types"
+	"bsc-node/core/types"
 
-	// "github.com/ethereum/go-ethereum/core/types"
+	"bsc-node/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -167,12 +166,7 @@ func (journal *journal) rotate(all map[common.Address]types.Transactions) error 
 		return err
 	}
 	journal.writer = sink
-
-	logger := log.Info
-	if len(all) == 0 {
-		logger = log.Debug
-	}
-	logger("Regenerated local transaction journal", "transactions", journaled, "accounts", len(all))
+	log.Info("Regenerated local transaction journal", "transactions", journaled, "accounts", len(all))
 
 	return nil
 }

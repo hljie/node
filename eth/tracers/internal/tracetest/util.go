@@ -5,8 +5,8 @@ import (
 	"unicode"
 
 	// Force-load native and js packages, to trigger registration
-	_ "node/eth/tracers/js"
-	_ "node/eth/tracers/native"
+	_ "bsc-node/eth/tracers/js"
+	_ "bsc-node/eth/tracers/native"
 )
 
 // To generate a new callTracer test, copy paste the makeTest method below into

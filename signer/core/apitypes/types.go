@@ -17,13 +17,13 @@
 package apitypes
 
 import (
+	"bsc-node/accounts"
+	"bsc-node/core/types"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"node/accounts"
-	"node/core/types"
 	"reflect"
 	"regexp"
 	"sort"
@@ -65,7 +65,7 @@ func (vs *ValidationMessages) Info(msg string) {
 	vs.Messages = append(vs.Messages, ValidationInfo{INFO, msg})
 }
 
-// GetWarnings returns an error with all messages of type WARN of above, or nil if no warnings were present
+// getWarnings returns an error with all messages of type WARN of above, or nil if no warnings were present
 func (v *ValidationMessages) GetWarnings() error {
 	var messages []string
 	for _, msg := range v.Messages {
@@ -186,6 +186,10 @@ var (
 	ApplicationClique = SigFormat{
 		accounts.MimetypeClique,
 		0x02,
+	}
+	ApplicationParlia = SigFormat{
+		accounts.MimetypeParlia,
+		0x03,
 	}
 	TextPlain = SigFormat{
 		accounts.MimetypeTextPlain,

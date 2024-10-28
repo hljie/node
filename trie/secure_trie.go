@@ -17,15 +17,13 @@
 package trie
 
 import (
-	"node/core/types"
-	"node/trie/trienode"
-	"node/triedb/database"
+	"bsc-node/core/types"
+	"bsc-node/trie/trienode"
 
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	// "github.com/ethereum/go-ethereum/trie/trienode"
-	// "github.com/ethereum/go-ethereum/triedb/database"
 )
 
 // SecureTrie is the old name of StateTrie.
@@ -34,7 +32,7 @@ type SecureTrie = StateTrie
 
 // NewSecure creates a new StateTrie.
 // Deprecated: use NewStateTrie.
-func NewSecure(stateRoot common.Hash, owner common.Hash, root common.Hash, db database.Database) (*SecureTrie, error) {
+func NewSecure(stateRoot common.Hash, owner common.Hash, root common.Hash, db *Database) (*SecureTrie, error) {
 	id := &ID{
 		StateRoot: stateRoot,
 		Owner:     owner,
@@ -55,8 +53,8 @@ func NewSecure(stateRoot common.Hash, owner common.Hash, root common.Hash, db da
 // StateTrie is not safe for concurrent use.
 type StateTrie struct {
 	trie             Trie
-	db               database.Database
-	hashKeyBuf       [common.HashLength]byte
+	preimages        *preimageStore
+	hashKeyBuf       [common.HashLength]byte //nolint:unused
 	secKeyCache      map[string][]byte
 	secKeyCacheOwner *StateTrie // Pointer to self, replace the key cache on mismatch
 }
@@ -66,7 +64,7 @@ type StateTrie struct {
 // If root is the zero hash or the sha3 hash of an empty string, the
 // trie is initially empty. Otherwise, New will panic if db is nil
 // and returns MissingNodeError if the root node cannot be found.
-func NewStateTrie(id *ID, db database.Database) (*StateTrie, error) {
+func NewStateTrie(id *ID, db *Database) (*StateTrie, error) {
 	if db == nil {
 		panic("trie.NewStateTrie called without a database")
 	}
@@ -74,7 +72,7 @@ func NewStateTrie(id *ID, db database.Database) (*StateTrie, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StateTrie{trie: *trie, db: db}, nil
+	return &StateTrie{trie: *trie, preimages: db.preimages}, nil
 }
 
 // MustGet returns the value for key stored in the trie.
@@ -215,7 +213,10 @@ func (t *StateTrie) GetKey(shaKey []byte) []byte {
 	if key, ok := t.getSecKeyCache()[string(shaKey)]; ok {
 		return key
 	}
-	return t.db.Preimage(common.BytesToHash(shaKey))
+	if t.preimages == nil {
+		return nil
+	}
+	return t.preimages.preimage(common.BytesToHash(shaKey))
 }
 
 // Commit collects all dirty nodes in the trie and replaces them with the
@@ -228,11 +229,13 @@ func (t *StateTrie) GetKey(shaKey []byte) []byte {
 func (t *StateTrie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) {
 	// Write all the pre-images to the actual disk database
 	if len(t.getSecKeyCache()) > 0 {
-		preimages := make(map[common.Hash][]byte)
-		for hk, key := range t.secKeyCache {
-			preimages[common.BytesToHash([]byte(hk))] = key
+		if t.preimages != nil {
+			preimages := make(map[common.Hash][]byte)
+			for hk, key := range t.secKeyCache {
+				preimages[common.BytesToHash([]byte(hk))] = key
+			}
+			t.preimages.insertPreimage(preimages)
 		}
-		t.db.InsertPreimage(preimages)
 		t.secKeyCache = make(map[string][]byte)
 	}
 	// Commit the trie and return its modified nodeset.
@@ -249,9 +252,20 @@ func (t *StateTrie) Hash() common.Hash {
 func (t *StateTrie) Copy() *StateTrie {
 	return &StateTrie{
 		trie:        *t.trie.Copy(),
-		db:          t.db,
+		preimages:   t.preimages,
 		secKeyCache: t.secKeyCache,
 	}
+}
+
+func (t *SecureTrie) ResetCopy() *SecureTrie {
+	cpy := *t
+	cpy.secKeyCacheOwner = nil
+	cpy.secKeyCache = nil
+	return &cpy
+}
+
+func (t *SecureTrie) GetRawTrie() Trie {
+	return t.trie
 }
 
 // NodeIterator returns an iterator that returns nodes of the underlying trie.
@@ -269,13 +283,16 @@ func (t *StateTrie) MustNodeIterator(start []byte) NodeIterator {
 // hashKey returns the hash of key as an ephemeral buffer.
 // The caller must not hold onto the return value because it will become
 // invalid on the next call to hashKey or secKey.
+//
+// no use hashKeyBuf for thread safe.
 func (t *StateTrie) hashKey(key []byte) []byte {
+	hash := make([]byte, common.HashLength)
 	h := newHasher(false)
 	h.sha.Reset()
 	h.sha.Write(key)
-	h.sha.Read(t.hashKeyBuf[:])
+	h.sha.Read(hash)
 	returnHasherToPool(h)
-	return t.hashKeyBuf[:]
+	return hash
 }
 
 // getSecKeyCache returns the current secure key cache, creating a new one if

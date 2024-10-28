@@ -17,8 +17,7 @@
 package rawdb
 
 import (
-	"node/ethdb"
-	// "github.com/ethereum/go-ethereum/ethdb"
+	"bsc-node/ethdb"
 )
 
 // table is a wrapper around a database that prefixes each key access with a pre-
@@ -73,6 +72,16 @@ func (t *table) AncientRange(kind string, start, count, maxBytes uint64) ([][]by
 // database.
 func (t *table) Ancients() (uint64, error) {
 	return t.db.Ancients()
+}
+
+// ItemAmountInAncient returns the actual length of current ancientDB.
+func (t *table) ItemAmountInAncient() (uint64, error) {
+	return t.db.ItemAmountInAncient()
+}
+
+// AncientOffSet returns the offset of current ancientDB.
+func (t *table) AncientOffSet() uint64 {
+	return t.db.AncientOffSet()
 }
 
 // Tail is a noop passthrough that just forwards the request to the underlying
@@ -196,6 +205,14 @@ func (t *table) NewBatch() ethdb.Batch {
 	return &tableBatch{t.db.NewBatch(), t.prefix}
 }
 
+func (t *table) DiffStore() ethdb.KeyValueStore {
+	return nil
+}
+
+func (t *table) SetDiffStore(diff ethdb.KeyValueStore) {
+	panic("not implement")
+}
+
 // NewBatchWithSize creates a write-only database batch with pre-allocated buffer.
 func (t *table) NewBatchWithSize(size int) ethdb.Batch {
 	return &tableBatch{t.db.NewBatchWithSize(size), t.prefix}
@@ -220,7 +237,7 @@ func (b *tableBatch) Put(key, value []byte) error {
 	return b.batch.Put(append([]byte(b.prefix), key...), value)
 }
 
-// Delete inserts a key removal into the batch for later committing.
+// Delete inserts the a key removal into the batch for later committing.
 func (b *tableBatch) Delete(key []byte) error {
 	return b.batch.Delete(append([]byte(b.prefix), key...))
 }

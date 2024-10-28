@@ -21,10 +21,11 @@ import (
 	"fmt"
 	"sort"
 
-	"node/core/rawdb"
+	"bsc-node/core/rawdb"
+
+	"bsc-node/ethdb"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 // Iterator is an iterator to step over all the accounts or the specific

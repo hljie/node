@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"node/p2p/enode"
+	"bsc-node/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"

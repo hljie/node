@@ -17,9 +17,9 @@
 package ethclient
 
 import (
+	"bsc-node/core/types"
 	"errors"
 	"math/big"
-	"node/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	// "github.com/ethereum/go-ethereum/core/types"
