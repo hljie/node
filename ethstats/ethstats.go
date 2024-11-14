@@ -34,7 +34,8 @@ import (
 	"bsc-node/core"
 	"bsc-node/core/types"
 	"bsc-node/log"
-	"bsc-node/miner"
+
+	// "bsc-node/miner"
 	"bsc-node/node"
 	"bsc-node/p2p"
 	"bsc-node/rpc"
@@ -85,7 +86,7 @@ type backend interface {
 // reporting to ethstats
 type fullNodeBackend interface {
 	backend
-	Miner() *miner.Miner
+	// Miner() *miner.Miner
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
 	CurrentBlock() *types.Block
 	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
@@ -790,8 +791,8 @@ func (s *Service) reportStats(conn *connWrapper) error {
 	// check if backend is a full node
 	fullBackend, ok := s.backend.(fullNodeBackend)
 	if ok {
-		mining = fullBackend.Miner().Mining()
-		hashrate = int(fullBackend.Miner().Hashrate())
+		// mining = fullBackend.Miner().Mining()
+		// hashrate = int(fullBackend.Miner().Hashrate())
 
 		sync := fullBackend.SyncProgress()
 		syncing = fullBackend.CurrentHeader().Number.Uint64() >= sync.HighestBlock

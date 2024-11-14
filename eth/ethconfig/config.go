@@ -29,7 +29,8 @@ import (
 	"bsc-node/core"
 	"bsc-node/core/txpool/blobpool"
 	"bsc-node/core/txpool/legacypool"
-	"bsc-node/miner"
+
+	// "bsc-node/miner"
 	"bsc-node/params"
 
 	"bsc-node/eth/downloader"
@@ -74,13 +75,13 @@ var Defaults = Config{
 	SnapshotCache:      102,
 	DiffBlock:          uint64(86400),
 	FilterLogCacheSize: 32,
-	Miner:              miner.DefaultConfig,
-	TxPool:             legacypool.DefaultConfig,
-	BlobPool:           blobpool.DefaultConfig,
-	RPCGasCap:          50000000,
-	RPCEVMTimeout:      5 * time.Second,
-	GPO:                FullNodeGPO,
-	RPCTxFeeCap:        1, // 1 ether
+	// Miner:              miner.DefaultConfig,
+	TxPool:        legacypool.DefaultConfig,
+	BlobPool:      blobpool.DefaultConfig,
+	RPCGasCap:     50000000,
+	RPCEVMTimeout: 5 * time.Second,
+	GPO:           FullNodeGPO,
+	RPCTxFeeCap:   1, // 1 ether
 }
 
 //go:generate go run github.com/fjl/gencodec -type Config -formats toml -out gen_config.go
@@ -171,7 +172,7 @@ type Config struct {
 	FilterLogCacheSize int
 
 	// Mining options
-	Miner miner.Config
+	// Miner miner.Config
 
 	// Transaction pool options
 	TxPool   legacypool.Config

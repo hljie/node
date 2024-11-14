@@ -163,16 +163,16 @@ func (oracle *Oracle) resolveBlockRange(ctx context.Context, reqEnd rpc.BlockNum
 			err      error
 		)
 		switch reqEnd {
-		case rpc.PendingBlockNumber:
-			if pendingBlock, pendingReceipts = oracle.backend.PendingBlockAndReceipts(); pendingBlock != nil {
-				resolved = pendingBlock.Header()
-			} else {
-				// Pending block not supported by backend, process only until latest block.
-				resolved = headBlock
+		// case rpc.PendingBlockNumber:
+		// 	if pendingBlock, pendingReceipts = oracle.backend.PendingBlockAndReceipts(); pendingBlock != nil {
+		// 		resolved = pendingBlock.Header()
+		// 	} else {
+		// 		// Pending block not supported by backend, process only until latest block.
+		// 		resolved = headBlock
 
-				// Update total blocks to return to account for this.
-				blocks--
-			}
+		// 		// Update total blocks to return to account for this.
+		// 		blocks--
+		// 	}
 		case rpc.LatestBlockNumber:
 			// Retrieved above.
 			resolved = headBlock

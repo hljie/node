@@ -29,7 +29,8 @@ import (
 	"bsc-node/consensus/beacon"
 	"bsc-node/consensus/clique"
 	"bsc-node/consensus/parlia"
-	"bsc-node/miner"
+
+	// "bsc-node/miner"
 	"bsc-node/node"
 	"bsc-node/p2p"
 	"bsc-node/p2p/dnsdisc"
@@ -114,7 +115,7 @@ type Ethereum struct {
 
 	APIBackend *EthAPIBackend
 
-	miner     *miner.Miner
+	// miner     *miner.Miner
 	gasPrice  *big.Int
 	etherbase common.Address
 
@@ -143,10 +144,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if !config.TriesVerifyMode.IsValid() {
 		return nil, fmt.Errorf("invalid tries verify mode %d", config.TriesVerifyMode)
 	}
-	if config.Miner.GasPrice == nil || config.Miner.GasPrice.Cmp(common.Big0) <= 0 {
-		log.Warn("Sanitizing invalid miner gas price", "provided", config.Miner.GasPrice, "updated", ethconfig.Defaults.Miner.GasPrice)
-		config.Miner.GasPrice = new(big.Int).Set(ethconfig.Defaults.Miner.GasPrice)
-	}
+	// if config.Miner.GasPrice == nil || config.Miner.GasPrice.Cmp(common.Big0) <= 0 {
+	// 	log.Warn("Sanitizing invalid miner gas price", "provided", config.Miner.GasPrice, "updated", ethconfig.Defaults.Miner.GasPrice)
+	// 	config.Miner.GasPrice = new(big.Int).Set(ethconfig.Defaults.Miner.GasPrice)
+	// }
 
 	// Assemble the Ethereum object
 	chainDb, err := stack.OpenAndMergeDatabase("chaindata", config.DatabaseCache, config.DatabaseHandles,
@@ -223,8 +224,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		accountManager:    stack.AccountManager(),
 		closeBloomHandler: make(chan struct{}),
 		networkID:         config.NetworkId,
-		gasPrice:          config.Miner.GasPrice,
-		etherbase:         config.Miner.Etherbase,
+		gasPrice:          big.NewInt(3000000000),
+		etherbase:         common.Address{},
 		bloomRequests:     make(chan chan *bloombits.Retrieval),
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
@@ -331,8 +332,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		return nil, err
 	}
 
-	eth.miner = miner.New(eth, &config.Miner, eth.blockchain.Config(), eth.EventMux(), eth.engine, eth.isLocalBlock)
-	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
+	// eth.miner = miner.New(eth, &config.Miner, eth.blockchain.Config(), eth.EventMux(), eth.engine, eth.isLocalBlock)
+	// eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 
 	// Create voteManager instance
 	if posa, ok := eth.engine.(consensus.PoSA); ok {
@@ -340,10 +341,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		votePool := vote.NewVotePool(eth.blockchain, posa)
 		eth.votePool = votePool
 		if parlia, ok := eth.engine.(*parlia.Parlia); ok {
-			if !config.Miner.DisableVoteAttestation {
-				// if there is no VotePool in Parlia Engine, the miner can't get votes for assembling
-				parlia.VotePool = votePool
-			}
+			// if !config.Miner.DisableVoteAttestation {
+			// if there is no VotePool in Parlia Engine, the miner can't get votes for assembling
+			parlia.VotePool = votePool
+			// }
 		} else {
 			return nil, fmt.Errorf("Engine is not Parlia type")
 		}
@@ -354,23 +355,23 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			log.Info("Create MaliciousVoteMonitor successfully")
 		}
 
-		if config.Miner.VoteEnable {
-			conf := stack.Config()
-			blsPasswordPath := stack.ResolvePath(conf.BLSPasswordFile)
-			blsWalletPath := stack.ResolvePath(conf.BLSWalletDir)
-			voteJournalPath := stack.ResolvePath(conf.VoteJournalDir)
-			if _, err := vote.NewVoteManager(eth, eth.blockchain, votePool, voteJournalPath, blsPasswordPath, blsWalletPath, posa); err != nil {
-				log.Error("Failed to Initialize voteManager", "err", err)
-				return nil, err
-			}
-			log.Info("Create voteManager successfully")
-		}
+		// if config.Miner.VoteEnable {
+		// 	conf := stack.Config()
+		// 	blsPasswordPath := stack.ResolvePath(conf.BLSPasswordFile)
+		// 	blsWalletPath := stack.ResolvePath(conf.BLSWalletDir)
+		// 	voteJournalPath := stack.ResolvePath(conf.VoteJournalDir)
+		// 	if _, err := vote.NewVoteManager(eth, eth.blockchain, votePool, voteJournalPath, blsPasswordPath, blsWalletPath, posa); err != nil {
+		// 		log.Error("Failed to Initialize voteManager", "err", err)
+		// 		return nil, err
+		// 	}
+		// 	log.Info("Create voteManager successfully")
+		// }
 	}
 
 	gpoParams := config.GPO
-	if gpoParams.Default == nil {
-		gpoParams.Default = config.Miner.GasPrice
-	}
+	// if gpoParams.Default == nil {
+	// 	gpoParams.Default = 3000000000
+	// }
 	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
 
 	// Setup DNS discovery iterators.
@@ -536,7 +537,7 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 	s.etherbase = etherbase
 	s.lock.Unlock()
 
-	s.miner.SetEtherbase(etherbase)
+	// s.miner.SetEtherbase(etherbase)
 }
 
 // StartMining starts the miner with the given number of CPU threads. If mining
@@ -544,54 +545,54 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 // and updates the minimum price required by the transaction pool.
 func (s *Ethereum) StartMining() error {
 	// If the miner was not running, initialize it
-	if !s.IsMining() {
-		// Propagate the initial price point to the transaction pool
-		s.lock.RLock()
-		price := s.gasPrice
-		s.lock.RUnlock()
-		s.txPool.SetGasTip(price)
+	// if !s.IsMining() {
+	// Propagate the initial price point to the transaction pool
+	s.lock.RLock()
+	price := s.gasPrice
+	s.lock.RUnlock()
+	s.txPool.SetGasTip(price)
 
-		// Configure the local mining address
-		eb, err := s.Etherbase()
-		if err != nil {
-			log.Error("Cannot start mining without etherbase", "err", err)
-			return fmt.Errorf("etherbase missing: %v", err)
-		}
-		var cli *clique.Clique
-		if c, ok := s.engine.(*clique.Clique); ok {
-			cli = c
-		} else if cl, ok := s.engine.(*beacon.Beacon); ok {
-			if c, ok := cl.InnerEngine().(*clique.Clique); ok {
-				cli = c
-			}
-		}
-		if cli != nil {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-			if wallet == nil || err != nil {
-				log.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			cli.Authorize(eb, wallet.SignData)
-		}
-		if parlia, ok := s.engine.(*parlia.Parlia); ok {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-			if wallet == nil || err != nil {
-				log.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			parlia.Authorize(eb, wallet.SignData, wallet.SignTx)
-
-			minerInfo := metrics.Get("miner-info")
-			if minerInfo != nil {
-				minerInfo.(metrics.Label).Value()["Etherbase"] = eb.String()
-			}
-		}
-		// If mining is started, we can disable the transaction rejection mechanism
-		// introduced to speed sync times.
-		s.handler.enableSyncedFeatures()
-
-		go s.miner.Start()
+	// Configure the local mining address
+	eb, err := s.Etherbase()
+	if err != nil {
+		log.Error("Cannot start mining without etherbase", "err", err)
+		return fmt.Errorf("etherbase missing: %v", err)
 	}
+	var cli *clique.Clique
+	if c, ok := s.engine.(*clique.Clique); ok {
+		cli = c
+	} else if cl, ok := s.engine.(*beacon.Beacon); ok {
+		if c, ok := cl.InnerEngine().(*clique.Clique); ok {
+			cli = c
+		}
+	}
+	if cli != nil {
+		wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+		if wallet == nil || err != nil {
+			log.Error("Etherbase account unavailable locally", "err", err)
+			return fmt.Errorf("signer missing: %v", err)
+		}
+		cli.Authorize(eb, wallet.SignData)
+	}
+	if parlia, ok := s.engine.(*parlia.Parlia); ok {
+		wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+		if wallet == nil || err != nil {
+			log.Error("Etherbase account unavailable locally", "err", err)
+			return fmt.Errorf("signer missing: %v", err)
+		}
+		parlia.Authorize(eb, wallet.SignData, wallet.SignTx)
+
+		minerInfo := metrics.Get("miner-info")
+		if minerInfo != nil {
+			minerInfo.(metrics.Label).Value()["Etherbase"] = eb.String()
+		}
+	}
+	// If mining is started, we can disable the transaction rejection mechanism
+	// introduced to speed sync times.
+	s.handler.enableSyncedFeatures()
+
+	// go s.miner.Start()
+	// }
 	return nil
 }
 
@@ -606,11 +607,11 @@ func (s *Ethereum) StopMining() {
 		th.SetThreads(-1)
 	}
 	// Stop the block creating itself
-	s.miner.Stop()
+	// s.miner.Stop()
 }
 
-func (s *Ethereum) IsMining() bool      { return s.miner.Mining() }
-func (s *Ethereum) Miner() *miner.Miner { return s.miner }
+// func (s *Ethereum) IsMining() bool      { return s.miner.Mining() }
+// func (s *Ethereum) Miner() *miner.Miner { return s.miner }
 
 func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Ethereum) BlockChain() *core.BlockChain       { return s.blockchain }
@@ -685,7 +686,7 @@ func (s *Ethereum) Stop() error {
 	s.bloomIndexer.Close()
 	close(s.closeBloomHandler)
 	s.txPool.Close()
-	s.miner.Close()
+	// s.miner.Close()
 	s.blockchain.Stop()
 	s.engine.Close()
 

@@ -1,3 +1,11 @@
+/*
+ * @Author: Liuzongyun 845666459@qq.com
+ * @Date: 2024-11-14 11:16:14
+ * @LastEditors: Liuzongyun 845666459@qq.com
+ * @LastEditTime: 2024-11-14 14:29:59
+ * @FilePath: /bsc/node/eth/api_miner.go
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 // Copyright 2023 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -18,7 +26,7 @@ package eth
 
 import (
 	"math/big"
-	"time"
+	// "time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -51,9 +59,9 @@ func (api *MinerAPI) Stop() {
 
 // SetExtra sets the extra data string that is included when this miner mines a block.
 func (api *MinerAPI) SetExtra(extra string) (bool, error) {
-	if err := api.e.Miner().SetExtra([]byte(extra)); err != nil {
-		return false, err
-	}
+	// if err := api.e.Miner().SetExtra([]byte(extra)); err != nil {
+	// 	return false, err
+	// }
 	return true, nil
 }
 
@@ -69,7 +77,7 @@ func (api *MinerAPI) SetGasPrice(gasPrice hexutil.Big) bool {
 
 // SetGasLimit sets the gaslimit to target towards during mining.
 func (api *MinerAPI) SetGasLimit(gasLimit hexutil.Uint64) bool {
-	api.e.Miner().SetGasCeil(uint64(gasLimit))
+	// api.e.Miner().SetGasCeil(uint64(gasLimit))
 	return true
 }
 
@@ -81,5 +89,5 @@ func (api *MinerAPI) SetEtherbase(etherbase common.Address) bool {
 
 // SetRecommitInterval updates the interval for miner sealing work recommitting.
 func (api *MinerAPI) SetRecommitInterval(interval int) {
-	api.e.Miner().SetRecommitInterval(time.Duration(interval) * time.Millisecond)
+	// api.e.Miner().SetRecommitInterval(time.Duration(interval) * time.Millisecond)
 }

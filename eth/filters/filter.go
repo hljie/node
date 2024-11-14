@@ -123,9 +123,9 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	}
 
 	// Short-cut if all we care about is pending logs
-	if beginPending && endPending {
-		return f.pendingLogs(), nil
-	}
+	// if beginPending && endPending {
+	// 	return f.pendingLogs(), nil
+	// }
 
 	resolveSpecial := func(number int64) (int64, error) {
 		var hdr *types.Header
@@ -174,10 +174,10 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 				return logs, err
 			}
 			// Append the pending ones
-			if endPending {
-				pendingLogs := f.pendingLogs()
-				logs = append(logs, pendingLogs...)
-			}
+			// if endPending {
+			// 	pendingLogs := f.pendingLogs()
+			// 	logs = append(logs, pendingLogs...)
+			// }
 			return logs, nil
 		}
 	}
@@ -337,20 +337,20 @@ func (f *Filter) checkMatches(ctx context.Context, header *types.Header) ([]*typ
 }
 
 // pendingLogs returns the logs matching the filter criteria within the pending block.
-func (f *Filter) pendingLogs() []*types.Log {
-	block, receipts := f.sys.backend.PendingBlockAndReceipts()
-	if block == nil || receipts == nil {
-		return nil
-	}
-	if bloomFilter(block.Bloom(), f.addresses, f.topics) {
-		var unfiltered []*types.Log
-		for _, r := range receipts {
-			unfiltered = append(unfiltered, r.Logs...)
-		}
-		return filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
-	}
-	return nil
-}
+// func (f *Filter) pendingLogs() []*types.Log {
+// 	block, receipts := f.sys.backend.PendingBlockAndReceipts()
+// 	if block == nil || receipts == nil {
+// 		return nil
+// 	}
+// 	if bloomFilter(block.Bloom(), f.addresses, f.topics) {
+// 		var unfiltered []*types.Log
+// 		for _, r := range receipts {
+// 			unfiltered = append(unfiltered, r.Logs...)
+// 		}
+// 		return filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+// 	}
+// 	return nil
+// }
 
 func includes(addresses []common.Address, a common.Address) bool {
 	for _, addr := range addresses {

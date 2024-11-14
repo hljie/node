@@ -57,7 +57,8 @@ import (
 	"bsc-node/ethstats"
 	"bsc-node/internal/ethapi"
 	"bsc-node/log"
-	"bsc-node/miner"
+
+	// "bsc-node/miner"
 	"bsc-node/node"
 	"bsc-node/p2p"
 	"bsc-node/p2p/enode"
@@ -79,6 +80,7 @@ import (
 	// "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
+	"github.com/ethereum/go-ethereum/miner"
 
 	// "github.com/ethereum/go-ethereum/core"
 	// "github.com/ethereum/go-ethereum/core/rawdb"
@@ -563,13 +565,13 @@ var (
 	MinerGasLimitFlag = &cli.Uint64Flag{
 		Name:     "miner.gaslimit",
 		Usage:    "Target gas ceiling for mined blocks",
-		Value:    ethconfig.Defaults.Miner.GasCeil,
+		Value:    uint64(140000000),
 		Category: flags.MinerCategory,
 	}
 	MinerGasPriceFlag = &flags.BigFlag{
 		Name:     "miner.gasprice",
 		Usage:    "Minimum gas price for mining a transaction",
-		Value:    ethconfig.Defaults.Miner.GasPrice,
+		Value:    big.NewInt(3000000000),
 		Category: flags.MinerCategory,
 	}
 	MinerEtherbaseFlag = &cli.StringFlag{
@@ -585,19 +587,19 @@ var (
 	MinerRecommitIntervalFlag = &cli.DurationFlag{
 		Name:     "miner.recommit",
 		Usage:    "Time interval to recreate the block being mined",
-		Value:    ethconfig.Defaults.Miner.Recommit,
+		Value:    time.Duration(10000000000),
 		Category: flags.MinerCategory,
 	}
 	MinerDelayLeftoverFlag = &cli.DurationFlag{
 		Name:     "miner.delayleftover",
 		Usage:    "Time reserved to finalize a block",
-		Value:    ethconfig.Defaults.Miner.DelayLeftOver,
+		Value:    50 * time.Microsecond,
 		Category: flags.MinerCategory,
 	}
 	MinerNewPayloadTimeout = &cli.DurationFlag{
 		Name:     "miner.newpayload-timeout",
 		Usage:    "Specify the maximum time allowance for creating a new payload",
-		Value:    ethconfig.Defaults.Miner.NewPayloadTimeout,
+		Value:    2 * time.Second,
 		Category: flags.MinerCategory,
 	}
 
@@ -1481,7 +1483,7 @@ func setEtherbase(ctx *cli.Context, cfg *ethconfig.Config) {
 		Fatalf("-%s: invalid etherbase address %q", MinerEtherbaseFlag.Name, addr)
 		return
 	}
-	cfg.Miner.Etherbase = common.BytesToAddress(b)
+	// cfg.Miner.Etherbase = common.BytesToAddress(b)
 }
 
 // MakePasswordList reads password lines from the file specified by the global --password flag.
@@ -1744,18 +1746,18 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.IsSet(MinerRecommitIntervalFlag.Name) {
 		cfg.Recommit = ctx.Duration(MinerRecommitIntervalFlag.Name)
 	}
-	if ctx.IsSet(MinerDelayLeftoverFlag.Name) {
-		cfg.DelayLeftOver = ctx.Duration(MinerDelayLeftoverFlag.Name)
-	}
-	if ctx.Bool(VotingEnabledFlag.Name) {
-		cfg.VoteEnable = true
-	}
+	// if ctx.IsSet(MinerDelayLeftoverFlag.Name) {
+	// 	cfg.DelayLeftOver = ctx.Duration(MinerDelayLeftoverFlag.Name)
+	// }
+	// if ctx.Bool(VotingEnabledFlag.Name) {
+	// 	cfg.VoteEnable = true
+	// }
 	if ctx.IsSet(MinerNewPayloadTimeout.Name) {
 		cfg.NewPayloadTimeout = ctx.Duration(MinerNewPayloadTimeout.Name)
 	}
-	if ctx.Bool(DisableVoteAttestationFlag.Name) {
-		cfg.DisableVoteAttestation = true
-	}
+	// if ctx.Bool(DisableVoteAttestationFlag.Name) {
+	// 	cfg.DisableVoteAttestation = true
+	// }
 }
 
 func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
@@ -1837,7 +1839,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	setEtherbase(ctx, cfg)
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
-	setMiner(ctx, &cfg.Miner)
+	// setMiner(ctx, &cfg.Miner)
 	setRequiredBlocks(ctx, cfg)
 	setLes(ctx, cfg)
 
@@ -2032,7 +2034,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		var (
 			developer  accounts.Account
 			passphrase string
-			err        error
+			// err        error
 		)
 		if list := MakePasswordList(ctx); len(list) > 0 {
 			// Just take the first value. Although the function returns a possible multiple values and
@@ -2052,19 +2054,19 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 
 		// Figure out the dev account address.
 		// setEtherbase has been called above, configuring the miner address from command line flags.
-		if cfg.Miner.Etherbase != (common.Address{}) {
-			developer = accounts.Account{Address: cfg.Miner.Etherbase}
-		} else if accs := ks.Accounts(); len(accs) > 0 {
-			developer = ks.Accounts()[0]
-		} else {
-			developer, err = ks.NewAccount(passphrase)
-			if err != nil {
-				Fatalf("Failed to create developer account: %v", err)
-			}
-		}
+		// if cfg.Miner.Etherbase != (common.Address{}) {
+		// 	developer = accounts.Account{Address: cfg.Miner.Etherbase}
+		// } else if accs := ks.Accounts(); len(accs) > 0 {
+		// 	developer = ks.Accounts()[0]
+		// } else {
+		// 	developer, err = ks.NewAccount(passphrase)
+		// 	if err != nil {
+		// 		Fatalf("Failed to create developer account: %v", err)
+		// 	}
+		// }
 		// Make sure the address is configured as fee recipient, otherwise
 		// the miner will fail to start.
-		cfg.Miner.Etherbase = developer.Address
+		// cfg.Miner.Etherbase = developer.Address
 
 		if err := ks.Unlock(developer, passphrase); err != nil {
 			Fatalf("Failed to unlock developer account: %v", err)
@@ -2089,7 +2091,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			chaindb.Close()
 		}
 		if !ctx.IsSet(MinerGasPriceFlag.Name) {
-			cfg.Miner.GasPrice = big.NewInt(1)
+			// cfg.Miner.GasPrice = big.NewInt(1)
 		}
 	default:
 		if cfg.NetworkId == 1 {

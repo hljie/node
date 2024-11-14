@@ -11,7 +11,7 @@ import (
 	"bsc-node/core/txpool/legacypool"
 	"bsc-node/eth/downloader"
 	"bsc-node/eth/gasprice"
-	"bsc-node/miner"
+	// "bsc-node/miner"
 	// "github.com/ethereum/go-ethereum/miner"
 )
 
@@ -61,7 +61,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		TriesVerifyMode         core.VerifyMode
 		Preimages               bool
 		FilterLogCacheSize      int
-		Miner                   miner.Config
+		// Miner                   miner.Config
 		TxPool                  legacypool.Config
 		BlobPool                blobpool.Config
 		GPO                     gasprice.Config
@@ -119,7 +119,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.TriesVerifyMode = c.TriesVerifyMode
 	enc.Preimages = c.Preimages
 	enc.FilterLogCacheSize = c.FilterLogCacheSize
-	enc.Miner = c.Miner
+	// enc.Miner = c.Miner
 	enc.TxPool = c.TxPool
 	enc.BlobPool = c.BlobPool
 	enc.GPO = c.GPO
@@ -181,7 +181,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		TriesVerifyMode         *core.VerifyMode
 		Preimages               *bool
 		FilterLogCacheSize      *int
-		Miner                   *miner.Config
+		// Miner                   *miner.Config
 		TxPool                  *legacypool.Config
 		BlobPool                *blobpool.Config
 		GPO                     *gasprice.Config
@@ -328,9 +328,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.FilterLogCacheSize != nil {
 		c.FilterLogCacheSize = *dec.FilterLogCacheSize
 	}
-	if dec.Miner != nil {
-		c.Miner = *dec.Miner
-	}
+	// if dec.Miner != nil {
+	// 	c.Miner = *dec.Miner
+	// }
 	if dec.TxPool != nil {
 		c.TxPool = *dec.TxPool
 	}

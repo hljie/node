@@ -1,3 +1,11 @@
+/*
+ * @Author: Liuzongyun 845666459@qq.com
+ * @Date: 2024-11-14 11:16:14
+ * @LastEditors: Liuzongyun 845666459@qq.com
+ * @LastEditTime: 2024-11-14 14:29:29
+ * @FilePath: /bsc/node/eth/api.go
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -43,10 +51,10 @@ func (api *EthereumAPI) Coinbase() (common.Address, error) {
 
 // Hashrate returns the POW hashrate.
 func (api *EthereumAPI) Hashrate() hexutil.Uint64 {
-	return hexutil.Uint64(api.e.Miner().Hashrate())
+	return hexutil.Uint64(0)
 }
 
 // Mining returns an indication if this node is currently mining.
 func (api *EthereumAPI) Mining() bool {
-	return api.e.IsMining()
+	return false
 }
